@@ -1,0 +1,26 @@
+server:
+  port: ${LIBRARY_SERVICE_PORT:8082}
+
+spring:
+  application:
+    name: library-service
+  datasource:
+    url: ${LIBRARY_DB_URL:jdbc:postgresql://localhost:5433/library_db}
+    username: ${LIBRARY_DB_USERNAME:postgres}
+    password: ${LIBRARY_DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/game-cellar}
+
+game-service:
+  url: ${GAME_SERVICE_URL:http://localhost:8081}
