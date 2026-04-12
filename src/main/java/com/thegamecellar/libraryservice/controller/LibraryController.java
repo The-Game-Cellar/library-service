@@ -24,9 +24,10 @@ public class LibraryController {
             Authentication authentication,
             @RequestParam(required = false) GameStatus status,
             @RequestParam(required = false) String platform,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String genre) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search));
+        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search, genre));
     }
 
     @GetMapping("/games/{gameId}")
