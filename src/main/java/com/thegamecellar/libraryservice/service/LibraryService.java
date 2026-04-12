@@ -19,12 +19,21 @@ import java.util.stream.Collectors;
 public class LibraryService {
 
     private final UserGameRepository userGameRepository;
+    private final GameServiceClient gameServiceClient;
 
-    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search) {
-        return userGameRepository.findByUserIdWithFilters(userId, status, platform, search)
-                .stream()
-                .map(this::toDTO)
-                .toList();
+    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre) {
+        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, search);
+
+        if (genre != null && !genre.isBlank()) {
+            games = games.stream()
+                    .filter(game -> {
+                        List<String> genres = gameServiceClient.getGenresForGame(game.getRawgGameId());
+                        return genres.stream().anyMatch(g -> g.equalsIgnoreCase(genre));
+                    })
+                    .toList();
+        }
+
+        return games.stream().map(this::toDTO).toList();
     }
 
     public UserGameDTO getGame(String userId, Long gameId) {
