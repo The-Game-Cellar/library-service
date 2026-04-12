@@ -23,13 +23,6 @@ public class GameServiceClient {
     @Value("${game-service.url}")
     private String gameServiceUrl;
 
-    /**
-     * Fetches the genre names for a given RAWG game ID.
-     * Used when filtering user's library by genre (genre is not stored locally).
-     *
-     * @param rawgGameId the RAWG game ID
-     * @return list of genre names, or empty list if the call fails
-     */
     public List<String> getGenresForGame(Integer rawgGameId) {
         try {
             String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;
