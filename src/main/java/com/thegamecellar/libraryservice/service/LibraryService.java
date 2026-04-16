@@ -21,18 +21,11 @@ public class LibraryService {
     private final UserGameRepository userGameRepository;
     private final GameServiceClient gameServiceClient;
 
-    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre) {
-        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, search);
-
-        if (genre != null && !genre.isBlank()) {
-            games = games.stream()
-                    .filter(game -> {
-                        List<String> genres = gameServiceClient.getGenresForGame(game.getRawgGameId());
-                        return genres.stream().anyMatch(g -> g.equalsIgnoreCase(genre));
-                    })
-                    .toList();
-        }
-
+    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search) {
+        String searchPattern = (search != null && !search.isBlank())
+                ? "%" + search.toLowerCase() + "%"
+                : null;
+        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern);
         return games.stream().map(this::toDTO).toList();
     }
 
@@ -47,6 +40,8 @@ public class LibraryService {
         if (userGameRepository.existsByUserIdAndRawgGameId(userId, request.getRawgGameId())) {
             throw new GameAlreadyInCollectionException(request.getRawgGameId());
         }
+        String backgroundImage = gameServiceClient.getBackgroundImageForGame(request.getRawgGameId());
+
         UserGame game = UserGame.builder()
                 .userId(userId)
                 .rawgGameId(request.getRawgGameId())
@@ -55,6 +50,7 @@ public class LibraryService {
                 .platform(request.getPlatform())
                 .rating(request.getRating())
                 .notes(request.getNotes())
+                .backgroundImage(backgroundImage)
                 .build();
         return toDTO(userGameRepository.save(game));
     }
@@ -123,6 +119,7 @@ public class LibraryService {
                 .id(game.getId())
                 .rawgGameId(game.getRawgGameId())
                 .gameName(game.getGameName())
+                .backgroundImage(game.getBackgroundImage())
                 .status(game.getStatus())
                 .rating(game.getRating())
                 .platform(game.getPlatform())

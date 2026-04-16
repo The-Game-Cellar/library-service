@@ -23,6 +23,26 @@ public class GameServiceClient {
     @Value("${game-service.url}")
     private String gameServiceUrl;
 
+    public String getBackgroundImageForGame(Integer rawgGameId) {
+        try {
+            String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;
+            Map<String, Object> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            ).getBody();
+
+            if (response == null) return null;
+
+            Object image = response.get("backgroundImage");
+            return image instanceof String s ? s : null;
+        } catch (RestClientException e) {
+            log.warn("Failed to fetch background image for game {}: {}", rawgGameId, e.getMessage());
+            return null;
+        }
+    }
+
     public List<String> getGenresForGame(Integer rawgGameId) {
         try {
             String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;

@@ -1,5 +1,6 @@
 package com.thegamecellar.libraryservice.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,6 +33,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handlePlatformAlreadyAdded(PlatformAlreadyAddedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "Duplicate entry — resource already exists"));
     }
 
     @ExceptionHandler(Exception.class)
