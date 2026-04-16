@@ -16,6 +16,7 @@ public class UserGameDTO {
     private Long id;
     private Integer rawgGameId;
     private String gameName;
+    private String backgroundImage;
     private GameStatus status;
     private Integer rating;
     private String platform;

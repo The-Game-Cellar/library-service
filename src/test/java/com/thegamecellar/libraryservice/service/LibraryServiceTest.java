@@ -93,7 +93,7 @@ class LibraryServiceTest {
         when(userGameRepository.findByUserIdWithFilters(USER_ID, null, null, null))
                 .thenReturn(List.of(game));
 
-        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null);
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null);
 
         assertThat(result).hasSize(1);
         verify(userGameRepository).findByUserIdWithFilters(USER_ID, null, null, null);

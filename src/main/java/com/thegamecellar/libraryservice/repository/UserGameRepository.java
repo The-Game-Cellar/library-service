@@ -25,7 +25,7 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
             WHERE g.userId = :userId
             AND (:status IS NULL OR g.status = :status)
             AND (:platform IS NULL OR g.platform = :platform)
-            AND (:search IS NULL OR LOWER(g.gameName) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:search IS NULL OR LOWER(g.gameName) LIKE :search)
             """)
     List<UserGame> findByUserIdWithFilters(
             @Param("userId") String userId,

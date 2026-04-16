@@ -47,6 +47,9 @@ public class UserGame {
     @Column(name = "playtime")
     private Integer playtime;
 
+    @Column(name = "background_image")
+    private String backgroundImage;
+
     @Column(name = "notes")
     private String notes;
 
