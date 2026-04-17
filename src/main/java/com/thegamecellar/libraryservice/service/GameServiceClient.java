@@ -23,7 +23,9 @@ public class GameServiceClient {
     @Value("${game-service.url}")
     private String gameServiceUrl;
 
-    public String getBackgroundImageForGame(Integer rawgGameId) {
+    public record GameInfo(String backgroundImage, List<String> genres) {}
+
+    public GameInfo getGameInfo(Integer rawgGameId) {
         try {
             String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;
             Map<String, Object> response = restTemplate.exchange(
@@ -33,41 +35,19 @@ public class GameServiceClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {}
             ).getBody();
 
-            if (response == null) return null;
+            if (response == null) return new GameInfo(null, Collections.emptyList());
 
-            Object image = response.get("backgroundImage");
-            return image instanceof String s ? s : null;
-        } catch (RestClientException e) {
-            log.warn("Failed to fetch background image for game {}: {}", rawgGameId, e.getMessage());
-            return null;
-        }
-    }
+            String backgroundImage = response.get("backgroundImage") instanceof String s ? s : null;
 
-    public List<String> getGenresForGame(Integer rawgGameId) {
-        try {
-            String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;
-            Map<String, Object> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<Map<String, Object>>() {}
-            ).getBody();
-
-            if (response == null) {
-                return Collections.emptyList();
+            List<String> genres = Collections.emptyList();
+            if (response.get("genres") instanceof List<?> genreList) {
+                genres = genreList.stream().map(Object::toString).toList();
             }
 
-            Object genres = response.get("genres");
-            if (genres instanceof List<?> genreList) {
-                return genreList.stream()
-                        .map(Object::toString)
-                        .toList();
-            }
-
-            return Collections.emptyList();
+            return new GameInfo(backgroundImage, genres);
         } catch (RestClientException e) {
-            log.warn("Failed to fetch genres for game {}: {}", rawgGameId, e.getMessage());
-            return Collections.emptyList();
+            log.warn("Failed to fetch game info for game {}: {}", rawgGameId, e.getMessage());
+            return new GameInfo(null, Collections.emptyList());
         }
     }
 }

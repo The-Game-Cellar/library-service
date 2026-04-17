@@ -62,6 +62,8 @@ class LibraryServiceTest {
 
         UserGame saved = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         when(userGameRepository.existsByUserIdAndRawgGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(3328)).thenReturn(
+                new GameServiceClient.GameInfo("https://example.com/witcher.jpg", List.of("RPG", "Action")));
         when(userGameRepository.save(any())).thenReturn(saved);
 
         UserGameDTO result = libraryService.addGame(USER_ID, request);
@@ -147,15 +149,15 @@ class LibraryServiceTest {
     }
 
     @Test
-    void shouldReturnForgottenGames() {
+    void shouldReturnDustyGames() {
         UserGame oldGame = buildGame(1L, USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.findForgottenGames(eq(USER_ID), any(LocalDateTime.class)))
+        when(userGameRepository.findDustyGames(eq(USER_ID), any(LocalDateTime.class)))
                 .thenReturn(List.of(oldGame));
 
-        List<UserGameDTO> result = libraryService.getForgottenGames(USER_ID, 90);
+        List<UserGameDTO> result = libraryService.getDustyGames(USER_ID, 90);
 
         assertThat(result).hasSize(1);
-        verify(userGameRepository).findForgottenGames(eq(USER_ID), any(LocalDateTime.class));
+        verify(userGameRepository).findDustyGames(eq(USER_ID), any(LocalDateTime.class));
     }
 
     @Test

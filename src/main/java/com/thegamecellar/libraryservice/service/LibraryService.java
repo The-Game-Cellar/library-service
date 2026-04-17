@@ -40,7 +40,7 @@ public class LibraryService {
         if (userGameRepository.existsByUserIdAndRawgGameId(userId, request.getRawgGameId())) {
             throw new GameAlreadyInCollectionException(request.getRawgGameId());
         }
-        String backgroundImage = gameServiceClient.getBackgroundImageForGame(request.getRawgGameId());
+        GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getRawgGameId());
 
         UserGame game = UserGame.builder()
                 .userId(userId)
@@ -50,7 +50,8 @@ public class LibraryService {
                 .platform(request.getPlatform())
                 .rating(request.getRating())
                 .notes(request.getNotes())
-                .backgroundImage(backgroundImage)
+                .backgroundImage(gameInfo.backgroundImage())
+                .genres(gameInfo.genres().isEmpty() ? null : String.join(",", gameInfo.genres()))
                 .build();
         return toDTO(userGameRepository.save(game));
     }
@@ -84,9 +85,9 @@ public class LibraryService {
                 .toList();
     }
 
-    public List<UserGameDTO> getForgottenGames(String userId, int days) {
+    public List<UserGameDTO> getDustyGames(String userId, int days) {
         LocalDateTime threshold = LocalDateTime.now().minusDays(days);
-        return userGameRepository.findForgottenGames(userId, threshold)
+        return userGameRepository.findDustyGames(userId, threshold)
                 .stream()
                 .map(this::toDTO)
                 .toList();
@@ -115,11 +116,15 @@ public class LibraryService {
     }
 
     private UserGameDTO toDTO(UserGame game) {
+        List<String> genres = (game.getGenres() != null && !game.getGenres().isBlank())
+                ? List.of(game.getGenres().split(","))
+                : List.of();
         return UserGameDTO.builder()
                 .id(game.getId())
                 .rawgGameId(game.getRawgGameId())
                 .gameName(game.getGameName())
                 .backgroundImage(game.getBackgroundImage())
+                .genres(genres)
                 .status(game.getStatus())
                 .rating(game.getRating())
                 .platform(game.getPlatform())

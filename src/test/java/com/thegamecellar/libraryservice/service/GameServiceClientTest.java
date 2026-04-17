@@ -34,10 +34,10 @@ class GameServiceClientTest {
     }
 
     @Test
-    void shouldReturnGenresForGame() {
+    void shouldReturnGameInfoWithGenresAndImage() {
         Map<String, Object> responseBody = Map.of(
-                "genres", List.of("RPG", "Action"),
-                "tags", List.of("Open World", "Story Rich")
+                "backgroundImage", "https://example.com/witcher.jpg",
+                "genres", List.of("RPG", "Action")
         );
         when(restTemplate.exchange(
                 eq("http://localhost:8081/api/v1/games/3328"),
@@ -46,13 +46,14 @@ class GameServiceClientTest {
                 any(ParameterizedTypeReference.class)
         )).thenReturn(ResponseEntity.ok(responseBody));
 
-        List<String> genres = gameServiceClient.getGenresForGame(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
 
-        assertThat(genres).containsExactlyInAnyOrder("RPG", "Action");
+        assertThat(info.backgroundImage()).isEqualTo("https://example.com/witcher.jpg");
+        assertThat(info.genres()).containsExactlyInAnyOrder("RPG", "Action");
     }
 
     @Test
-    void shouldReturnEmptyListOnHttpError() {
+    void shouldReturnEmptyGameInfoOnHttpError() {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),
@@ -60,13 +61,14 @@ class GameServiceClientTest {
                 any(ParameterizedTypeReference.class)
         )).thenThrow(new RestClientException("Connection refused"));
 
-        List<String> genres = gameServiceClient.getGenresForGame(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
 
-        assertThat(genres).isEmpty();
+        assertThat(info.backgroundImage()).isNull();
+        assertThat(info.genres()).isEmpty();
     }
 
     @Test
-    void shouldReturnEmptyListWhenResponseBodyIsNull() {
+    void shouldReturnEmptyGameInfoWhenResponseBodyIsNull() {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),
@@ -74,8 +76,9 @@ class GameServiceClientTest {
                 any(ParameterizedTypeReference.class)
         )).thenReturn(ResponseEntity.ok(null));
 
-        List<String> genres = gameServiceClient.getGenresForGame(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
 
-        assertThat(genres).isEmpty();
+        assertThat(info.backgroundImage()).isNull();
+        assertThat(info.genres()).isEmpty();
     }
 }

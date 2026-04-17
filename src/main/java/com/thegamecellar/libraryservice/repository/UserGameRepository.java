@@ -41,7 +41,7 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
             AND g.dateAdded < :threshold
             AND (g.lastPlayed IS NULL OR g.lastPlayed < :threshold)
             """)
-    List<UserGame> findForgottenGames(
+    List<UserGame> findDustyGames(
             @Param("userId") String userId,
             @Param("threshold") LocalDateTime threshold
     );
