@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -17,6 +18,7 @@ public class UserGameDTO {
     private Integer rawgGameId;
     private String gameName;
     private String backgroundImage;
+    private List<String> genres;
     private GameStatus status;
     private Integer rating;
     private String platform;

@@ -50,6 +50,9 @@ public class UserGame {
     @Column(name = "background_image")
     private String backgroundImage;
 
+    @Column(name = "genres")
+    private String genres;
+
     @Column(name = "notes")
     private String notes;
 

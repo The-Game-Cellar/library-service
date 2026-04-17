@@ -89,11 +89,11 @@ public class LibraryController {
         return ResponseEntity.ok(libraryService.getStats(userId));
     }
 
-    @GetMapping("/forgotten")
-    public ResponseEntity<List<UserGameDTO>> getForgottenGames(
+    @GetMapping("/dusty")
+    public ResponseEntity<List<UserGameDTO>> getDustyGames(
             Authentication authentication,
             @RequestParam(defaultValue = "90") int days) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.ok(libraryService.getForgottenGames(userId, days));
+        return ResponseEntity.ok(libraryService.getDustyGames(userId, days));
     }
 }
