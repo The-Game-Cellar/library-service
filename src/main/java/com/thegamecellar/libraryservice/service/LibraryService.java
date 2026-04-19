@@ -21,12 +21,27 @@ public class LibraryService {
     private final UserGameRepository userGameRepository;
     private final GameServiceClient gameServiceClient;
 
-    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search) {
+    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre) {
         String searchPattern = (search != null && !search.isBlank())
                 ? "%" + search.toLowerCase() + "%"
                 : null;
-        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern);
+        String genrePattern = (genre != null && !genre.isBlank())
+                ? "%" + genre.toLowerCase() + "%"
+                : null;
+        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern, genrePattern);
         return games.stream().map(this::toDTO).toList();
+    }
+
+    public List<String> getGenres(String userId) {
+        return userGameRepository.findByUserId(userId).stream()
+                .map(UserGame::getGenres)
+                .filter(g -> g != null && !g.isBlank())
+                .flatMap(g -> java.util.Arrays.stream(g.split(",")))
+                .map(String::trim)
+                .filter(g -> !g.isBlank())
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     public UserGameDTO getGame(String userId, Long gameId) {
@@ -61,7 +76,15 @@ public class LibraryService {
                 .filter(g -> g.getUserId().equals(userId))
                 .orElseThrow(() -> new GameNotFoundException(gameId));
 
-        if (request.getStatus() != null) game.setStatus(request.getStatus());
+        if (request.getStatus() != null) {
+            if (request.getStatus() == GameStatus.DUSTY) {
+                throw new IllegalArgumentException("DUSTY status is auto-assigned and cannot be set manually");
+            }
+            game.setStatus(request.getStatus());
+            if (request.getStatus() == GameStatus.PLAYING) {
+                game.setLastPlayed(LocalDateTime.now());
+            }
+        }
         if (request.getRating() != null) game.setRating(request.getRating());
         if (request.getPlatform() != null) game.setPlatform(request.getPlatform());
         if (request.getLastPlayed() != null) game.setLastPlayed(request.getLastPlayed());
@@ -85,9 +108,8 @@ public class LibraryService {
                 .toList();
     }
 
-    public List<UserGameDTO> getDustyGames(String userId, int days) {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(days);
-        return userGameRepository.findDustyGames(userId, threshold)
+    public List<UserGameDTO> getDustyGames(String userId) {
+        return userGameRepository.findByUserIdAndStatus(userId, GameStatus.DUSTY)
                 .stream()
                 .map(this::toDTO)
                 .toList();

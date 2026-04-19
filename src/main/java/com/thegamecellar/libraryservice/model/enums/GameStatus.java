@@ -5,5 +5,6 @@ public enum GameStatus {
     BACKLOG,
     COMPLETED,
     DROPPED,
-    WISHLIST
+    WISHLIST,
+    DUSTY
 }
