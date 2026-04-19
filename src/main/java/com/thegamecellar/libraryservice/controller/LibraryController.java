@@ -4,6 +4,7 @@ import com.thegamecellar.libraryservice.model.dto.*;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.service.LibraryService;
 import com.thegamecellar.libraryservice.util.JwtUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +25,16 @@ public class LibraryController {
             Authentication authentication,
             @RequestParam(required = false) GameStatus status,
             @RequestParam(required = false) String platform,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String genre) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search));
+        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search, genre));
+    }
+
+    @GetMapping("/genres")
+    public ResponseEntity<List<String>> getGenres(Authentication authentication) {
+        String userId = JwtUtils.getUserId(authentication);
+        return ResponseEntity.ok(libraryService.getGenres(userId));
     }
 
     @GetMapping("/games/{gameId}")
@@ -38,7 +46,7 @@ public class LibraryController {
     @PostMapping("/games")
     public ResponseEntity<UserGameDTO> addGame(
             Authentication authentication,
-            @RequestBody AddGameRequest request) {
+            @Valid @RequestBody AddGameRequest request) {
         String userId = JwtUtils.getUserId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED).body(libraryService.addGame(userId, request));
     }
@@ -47,7 +55,7 @@ public class LibraryController {
     public ResponseEntity<UserGameDTO> updateGame(
             Authentication authentication,
             @PathVariable Long gameId,
-            @RequestBody UpdateGameRequest request) {
+            @Valid @RequestBody UpdateGameRequest request) {
         String userId = JwtUtils.getUserId(authentication);
         return ResponseEntity.ok(libraryService.updateGame(userId, gameId, request));
     }
@@ -90,10 +98,8 @@ public class LibraryController {
     }
 
     @GetMapping("/dusty")
-    public ResponseEntity<List<UserGameDTO>> getDustyGames(
-            Authentication authentication,
-            @RequestParam(defaultValue = "90") int days) {
+    public ResponseEntity<List<UserGameDTO>> getDustyGames(Authentication authentication) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.ok(libraryService.getDustyGames(userId, days));
+        return ResponseEntity.ok(libraryService.getDustyGames(userId));
     }
 }

@@ -22,7 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -92,13 +92,28 @@ class LibraryServiceTest {
     @Test
     void shouldOnlyReturnGamesForCurrentUser() {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.findByUserIdWithFilters(USER_ID, null, null, null))
+        when(userGameRepository.findByUserIdWithFilters(USER_ID, null, null, null, null))
                 .thenReturn(List.of(game));
 
-        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null);
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null);
 
         assertThat(result).hasSize(1);
-        verify(userGameRepository).findByUserIdWithFilters(USER_ID, null, null, null);
+        verify(userGameRepository).findByUserIdWithFilters(USER_ID, null, null, null, null);
+    }
+
+    @Test
+    void shouldFilterByGenre() {
+        UserGame rpgGame = UserGame.builder()
+                .id(1L).userId(USER_ID).rawgGameId(1).gameName("Witcher 3")
+                .status(GameStatus.BACKLOG).platform("PC").genres("RPG,Action")
+                .dateAdded(LocalDateTime.now().minusDays(1)).build();
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("%rpg%")))
+                .thenReturn(List.of(rpgGame));
+
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, "RPG");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getGenres()).contains("RPG");
     }
 
     @Test
@@ -127,6 +142,22 @@ class LibraryServiceTest {
 
         assertThat(result.getStatus()).isEqualTo(GameStatus.PLAYING);
         assertThat(result.getRating()).isEqualTo(9);
+        assertThat(result.getLastPlayed()).isNotNull();
+    }
+
+    @Test
+    void shouldNotSetLastPlayedWhenStatusIsNotPlaying() {
+        UserGame game = buildGame(1L, USER_ID, GameStatus.DUSTY);
+        UpdateGameRequest request = new UpdateGameRequest();
+        request.setStatus(GameStatus.BACKLOG);
+
+        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+        when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserGameDTO result = libraryService.updateGame(USER_ID, 1L, request);
+
+        assertThat(result.getStatus()).isEqualTo(GameStatus.BACKLOG);
+        assertThat(result.getLastPlayed()).isNull();
     }
 
     @Test
@@ -150,14 +181,28 @@ class LibraryServiceTest {
 
     @Test
     void shouldReturnDustyGames() {
-        UserGame oldGame = buildGame(1L, USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.findDustyGames(eq(USER_ID), any(LocalDateTime.class)))
-                .thenReturn(List.of(oldGame));
+        UserGame dustyGame = buildGame(1L, USER_ID, GameStatus.DUSTY);
+        when(userGameRepository.findByUserIdAndStatus(USER_ID, GameStatus.DUSTY))
+                .thenReturn(List.of(dustyGame));
 
-        List<UserGameDTO> result = libraryService.getDustyGames(USER_ID, 90);
+        List<UserGameDTO> result = libraryService.getDustyGames(USER_ID);
 
         assertThat(result).hasSize(1);
-        verify(userGameRepository).findDustyGames(eq(USER_ID), any(LocalDateTime.class));
+        assertThat(result.get(0).getStatus()).isEqualTo(GameStatus.DUSTY);
+        verify(userGameRepository).findByUserIdAndStatus(USER_ID, GameStatus.DUSTY);
+    }
+
+    @Test
+    void shouldRejectManualDustyStatusUpdate() {
+        UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
+        UpdateGameRequest request = new UpdateGameRequest();
+        request.setStatus(GameStatus.DUSTY);
+
+        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+
+        assertThatThrownBy(() -> libraryService.updateGame(USER_ID, 1L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("auto-assigned");
     }
 
     @Test

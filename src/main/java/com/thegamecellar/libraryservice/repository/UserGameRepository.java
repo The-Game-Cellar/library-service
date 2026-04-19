@@ -26,23 +26,20 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
             AND (:status IS NULL OR g.status = :status)
             AND (:platform IS NULL OR g.platform = :platform)
             AND (:search IS NULL OR LOWER(g.gameName) LIKE :search)
+            AND (:genre IS NULL OR LOWER(g.genres) LIKE :genre)
             """)
     List<UserGame> findByUserIdWithFilters(
             @Param("userId") String userId,
             @Param("status") GameStatus status,
             @Param("platform") String platform,
-            @Param("search") String search
+            @Param("search") String search,
+            @Param("genre") String genre
     );
 
     @Query("""
             SELECT g FROM UserGame g
-            WHERE g.userId = :userId
-            AND g.status IN ('BACKLOG', 'PLAYING')
-            AND g.dateAdded < :threshold
-            AND (g.lastPlayed IS NULL OR g.lastPlayed < :threshold)
+            WHERE g.status IN ('BACKLOG', 'PLAYING')
+            AND g.updatedAt < :threshold
             """)
-    List<UserGame> findDustyGames(
-            @Param("userId") String userId,
-            @Param("threshold") LocalDateTime threshold
-    );
+    List<UserGame> findAllEligibleForDusty(@Param("threshold") LocalDateTime threshold);
 }
