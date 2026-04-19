@@ -23,13 +23,17 @@ public class DustyTransitionScheduler {
 
     @Scheduled(cron = "0 0 3 * * *")
     public void transitionDustyGames() {
-        LocalDateTime threshold = LocalDateTime.now().minusDays(DUSTY_THRESHOLD_DAYS);
-        List<UserGame> eligible = userGameRepository.findAllEligibleForDusty(threshold);
-        if (eligible.isEmpty()) {
-            return;
+        try {
+            LocalDateTime threshold = LocalDateTime.now().minusDays(DUSTY_THRESHOLD_DAYS);
+            List<UserGame> eligible = userGameRepository.findAllEligibleForDusty(threshold);
+            if (eligible.isEmpty()) {
+                return;
+            }
+            eligible.forEach(g -> g.setStatus(GameStatus.DUSTY));
+            userGameRepository.saveAll(eligible);
+            log.info("Transitioned {} games to DUSTY status", eligible.size());
+        } catch (Exception e) {
+            log.error("DUSTY transition job failed — will retry at next scheduled run (03:00)", e);
         }
-        eligible.forEach(g -> g.setStatus(GameStatus.DUSTY));
-        userGameRepository.saveAll(eligible);
-        log.info("Transitioned {} games to DUSTY status", eligible.size());
     }
 }

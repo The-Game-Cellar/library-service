@@ -8,6 +8,7 @@ import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -51,6 +52,7 @@ public class LibraryService {
                 .orElseThrow(() -> new GameNotFoundException(gameId));
     }
 
+    @Transactional
     public UserGameDTO addGame(String userId, AddGameRequest request) {
         if (userGameRepository.existsByUserIdAndRawgGameId(userId, request.getRawgGameId())) {
             throw new GameAlreadyInCollectionException(request.getRawgGameId());
@@ -71,6 +73,7 @@ public class LibraryService {
         return toDTO(userGameRepository.save(game));
     }
 
+    @Transactional
     public UserGameDTO updateGame(String userId, Long gameId, UpdateGameRequest request) {
         UserGame game = userGameRepository.findById(gameId)
                 .filter(g -> g.getUserId().equals(userId))
@@ -94,6 +97,7 @@ public class LibraryService {
         return toDTO(userGameRepository.save(game));
     }
 
+    @Transactional
     public void removeGame(String userId, Long gameId) {
         UserGame game = userGameRepository.findById(gameId)
                 .filter(g -> g.getUserId().equals(userId))
