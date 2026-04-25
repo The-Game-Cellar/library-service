@@ -25,9 +25,9 @@ public class GameServiceClient {
 
     public record GameInfo(String backgroundImage, List<String> genres) {}
 
-    public GameInfo getGameInfo(Integer rawgGameId) {
+    public GameInfo getGameInfo(Integer igdbGameId) {
         try {
-            String url = gameServiceUrl + "/api/v1/games/" + rawgGameId;
+            String url = gameServiceUrl + "/api/v1/games/" + igdbGameId;
             Map<String, Object> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
@@ -46,7 +46,7 @@ public class GameServiceClient {
 
             return new GameInfo(backgroundImage, genres);
         } catch (RestClientException e) {
-            log.warn("Failed to fetch game info for game {}: {}", rawgGameId, e.getMessage());
+            log.warn("Failed to fetch game info for game {}: {}", igdbGameId, e.getMessage());
             return new GameInfo(null, Collections.emptyList());
         }
     }

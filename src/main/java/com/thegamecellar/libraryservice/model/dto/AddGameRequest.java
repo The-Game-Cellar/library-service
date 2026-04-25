@@ -10,7 +10,7 @@ import lombok.Data;
 @Data
 public class AddGameRequest {
     @NotNull
-    private Integer rawgGameId;
+    private Integer igdbGameId;
     @NotBlank
     private String gameName;
     @NotNull

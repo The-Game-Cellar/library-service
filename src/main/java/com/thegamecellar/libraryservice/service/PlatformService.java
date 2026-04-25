@@ -37,8 +37,7 @@ public class PlatformService {
     }
 
     public void removePlatform(String userId, Long platformId) {
-        UserPlatform platform = userPlatformRepository.findById(platformId)
-                .filter(p -> p.getUserId().equals(userId))
+        UserPlatform platform = userPlatformRepository.findByIdAndUserId(platformId, userId)
                 .orElseThrow(() -> new PlatformNotFoundException(platformId));
         userPlatformRepository.delete(platform);
     }
