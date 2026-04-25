@@ -30,7 +30,7 @@ class DustyTransitionSchedulerTest {
         return UserGame.builder()
                 .id(id)
                 .userId("user-123")
-                .rawgGameId(id.intValue())
+                .igdbGameId(id.intValue())
                 .gameName("Game " + id)
                 .status(status)
                 .platform("PC")

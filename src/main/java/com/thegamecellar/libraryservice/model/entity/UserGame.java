@@ -7,7 +7,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_games")
+@Table(name = "user_games", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "igdb_game_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,8 +22,8 @@ public class UserGame {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
-    @Column(name = "rawg_game_id", nullable = false)
-    private Integer rawgGameId;
+    @Column(name = "igdb_game_id", nullable = false)
+    private Integer igdbGameId;
 
     @Column(name = "game_name", nullable = false)
     private String gameName;

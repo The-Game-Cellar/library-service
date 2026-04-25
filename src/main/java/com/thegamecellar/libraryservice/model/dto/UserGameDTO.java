@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 public class UserGameDTO {
     private Long id;
-    private Integer rawgGameId;
+    private Integer igdbGameId;
     private String gameName;
     private String backgroundImage;
     private List<String> genres;

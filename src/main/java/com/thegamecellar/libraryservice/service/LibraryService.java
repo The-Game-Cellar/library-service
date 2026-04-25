@@ -46,22 +46,21 @@ public class LibraryService {
     }
 
     public UserGameDTO getGame(String userId, Long gameId) {
-        return userGameRepository.findById(gameId)
-                .filter(g -> g.getUserId().equals(userId))
+        return userGameRepository.findByIdAndUserId(gameId, userId)
                 .map(this::toDTO)
                 .orElseThrow(() -> new GameNotFoundException(gameId));
     }
 
     @Transactional
     public UserGameDTO addGame(String userId, AddGameRequest request) {
-        if (userGameRepository.existsByUserIdAndRawgGameId(userId, request.getRawgGameId())) {
-            throw new GameAlreadyInCollectionException(request.getRawgGameId());
+        if (userGameRepository.existsByUserIdAndIgdbGameId(userId, request.getIgdbGameId())) {
+            throw new GameAlreadyInCollectionException(request.getIgdbGameId());
         }
-        GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getRawgGameId());
+        GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getIgdbGameId());
 
         UserGame game = UserGame.builder()
                 .userId(userId)
-                .rawgGameId(request.getRawgGameId())
+                .igdbGameId(request.getIgdbGameId())
                 .gameName(request.getGameName())
                 .status(request.getStatus())
                 .platform(request.getPlatform())
@@ -75,8 +74,7 @@ public class LibraryService {
 
     @Transactional
     public UserGameDTO updateGame(String userId, Long gameId, UpdateGameRequest request) {
-        UserGame game = userGameRepository.findById(gameId)
-                .filter(g -> g.getUserId().equals(userId))
+        UserGame game = userGameRepository.findByIdAndUserId(gameId, userId)
                 .orElseThrow(() -> new GameNotFoundException(gameId));
 
         if (request.getStatus() != null) {
@@ -99,8 +97,7 @@ public class LibraryService {
 
     @Transactional
     public void removeGame(String userId, Long gameId) {
-        UserGame game = userGameRepository.findById(gameId)
-                .filter(g -> g.getUserId().equals(userId))
+        UserGame game = userGameRepository.findByIdAndUserId(gameId, userId)
                 .orElseThrow(() -> new GameNotFoundException(gameId));
         userGameRepository.delete(game);
     }
@@ -147,7 +144,7 @@ public class LibraryService {
                 : List.of();
         return UserGameDTO.builder()
                 .id(game.getId())
-                .rawgGameId(game.getRawgGameId())
+                .igdbGameId(game.getIgdbGameId())
                 .gameName(game.getGameName())
                 .backgroundImage(game.getBackgroundImage())
                 .genres(genres)

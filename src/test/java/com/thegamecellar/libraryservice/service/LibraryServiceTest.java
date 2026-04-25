@@ -44,7 +44,7 @@ class LibraryServiceTest {
         return UserGame.builder()
                 .id(id)
                 .userId(userId)
-                .rawgGameId(3328)
+                .igdbGameId(3328)
                 .gameName("The Witcher 3")
                 .status(status)
                 .platform("PC")
@@ -55,13 +55,13 @@ class LibraryServiceTest {
     @Test
     void shouldAddGameToCollection() {
         AddGameRequest request = new AddGameRequest();
-        request.setRawgGameId(3328);
+        request.setIgdbGameId(3328);
         request.setGameName("The Witcher 3");
         request.setStatus(GameStatus.BACKLOG);
         request.setPlatform("PC");
 
         UserGame saved = buildGame(1L, USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.existsByUserIdAndRawgGameId(USER_ID, 3328)).thenReturn(false);
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(3328)).thenReturn(
                 new GameServiceClient.GameInfo("https://example.com/witcher.jpg", List.of("RPG", "Action")));
         when(userGameRepository.save(any())).thenReturn(saved);
@@ -76,12 +76,12 @@ class LibraryServiceTest {
     @Test
     void shouldThrow409IfGameAlreadyExists() {
         AddGameRequest request = new AddGameRequest();
-        request.setRawgGameId(3328);
+        request.setIgdbGameId(3328);
         request.setGameName("The Witcher 3");
         request.setStatus(GameStatus.BACKLOG);
         request.setPlatform("PC");
 
-        when(userGameRepository.existsByUserIdAndRawgGameId(USER_ID, 3328)).thenReturn(true);
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(true);
 
         assertThatThrownBy(() -> libraryService.addGame(USER_ID, request))
                 .isInstanceOf(GameAlreadyInCollectionException.class);
@@ -104,7 +104,7 @@ class LibraryServiceTest {
     @Test
     void shouldFilterByGenre() {
         UserGame rpgGame = UserGame.builder()
-                .id(1L).userId(USER_ID).rawgGameId(1).gameName("Witcher 3")
+                .id(1L).userId(USER_ID).igdbGameId(1).gameName("Witcher 3")
                 .status(GameStatus.BACKLOG).platform("PC").genres("RPG,Action")
                 .dateAdded(LocalDateTime.now().minusDays(1)).build();
         when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("%rpg%")))
@@ -230,7 +230,7 @@ class LibraryServiceTest {
         return UserGame.builder()
                 .id(id)
                 .userId(USER_ID)
-                .rawgGameId(id.intValue())
+                .igdbGameId(id.intValue())
                 .gameName("Game " + id)
                 .status(status)
                 .platform("PC")

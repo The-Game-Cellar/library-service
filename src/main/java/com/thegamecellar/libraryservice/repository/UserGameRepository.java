@@ -16,9 +16,11 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
 
     List<UserGame> findByUserIdAndStatus(String userId, GameStatus status);
 
-    Optional<UserGame> findByUserIdAndRawgGameId(String userId, Integer rawgGameId);
+    Optional<UserGame> findByUserIdAndIgdbGameId(String userId, Integer igdbGameId);
 
-    boolean existsByUserIdAndRawgGameId(String userId, Integer rawgGameId);
+    boolean existsByUserIdAndIgdbGameId(String userId, Integer igdbGameId);
+
+    Optional<UserGame> findByIdAndUserId(Long id, String userId);
 
     @Query("""
             SELECT g FROM UserGame g
