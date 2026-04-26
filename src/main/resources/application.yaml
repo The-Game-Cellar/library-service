@@ -7,11 +7,12 @@ spring:
   datasource:
     url: ${LIBRARY_DB_URL:jdbc:postgresql://localhost:5433/library_db}
     username: ${LIBRARY_DB_USERNAME:postgres}
-    password: ${LIBRARY_DB_PASSWORD:password}
+    password: ${LIBRARY_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:

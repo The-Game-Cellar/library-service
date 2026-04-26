@@ -34,20 +34,22 @@ class GameServiceClientTest {
     }
 
     @Test
-    void shouldReturnGameInfoWithGenresAndImage() {
+    void shouldReturnGameInfoWithNameGenresAndImage() {
         Map<String, Object> responseBody = Map.of(
+                "name", "The Witcher 3",
                 "backgroundImage", "https://example.com/witcher.jpg",
                 "genres", List.of("RPG", "Action")
         );
         when(restTemplate.exchange(
                 eq("http://localhost:8081/api/v1/games/3328"),
                 eq(HttpMethod.GET),
-                isNull(),
+                any(),
                 any(ParameterizedTypeReference.class)
         )).thenReturn(ResponseEntity.ok(responseBody));
 
-        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328, "Bearer test-token");
 
+        assertThat(info.name()).isEqualTo("The Witcher 3");
         assertThat(info.backgroundImage()).isEqualTo("https://example.com/witcher.jpg");
         assertThat(info.genres()).containsExactlyInAnyOrder("RPG", "Action");
     }
@@ -57,12 +59,13 @@ class GameServiceClientTest {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),
-                isNull(),
+                any(),
                 any(ParameterizedTypeReference.class)
         )).thenThrow(new RestClientException("Connection refused"));
 
-        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328, "Bearer test-token");
 
+        assertThat(info.name()).isNull();
         assertThat(info.backgroundImage()).isNull();
         assertThat(info.genres()).isEmpty();
     }
@@ -72,12 +75,13 @@ class GameServiceClientTest {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),
-                isNull(),
+                any(),
                 any(ParameterizedTypeReference.class)
         )).thenReturn(ResponseEntity.ok(null));
 
-        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328);
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(3328, "Bearer test-token");
 
+        assertThat(info.name()).isNull();
         assertThat(info.backgroundImage()).isNull();
         assertThat(info.genres()).isEmpty();
     }

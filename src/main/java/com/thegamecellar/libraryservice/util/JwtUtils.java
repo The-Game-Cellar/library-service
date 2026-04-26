@@ -11,4 +11,9 @@ public class JwtUtils {
         Jwt jwt = (Jwt) authentication.getPrincipal();
         return jwt.getSubject();
     }
+
+    public static String getBearerToken(Authentication authentication) {
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        return "Bearer " + jwt.getTokenValue();
+    }
 }
