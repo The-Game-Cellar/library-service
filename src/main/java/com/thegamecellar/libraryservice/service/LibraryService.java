@@ -52,16 +52,16 @@ public class LibraryService {
     }
 
     @Transactional
-    public UserGameDTO addGame(String userId, AddGameRequest request) {
+    public UserGameDTO addGame(String userId, AddGameRequest request, String bearerToken) {
         if (userGameRepository.existsByUserIdAndIgdbGameId(userId, request.getIgdbGameId())) {
             throw new GameAlreadyInCollectionException(request.getIgdbGameId());
         }
-        GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getIgdbGameId());
+        GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getIgdbGameId(), bearerToken);
 
         UserGame game = UserGame.builder()
                 .userId(userId)
                 .igdbGameId(request.getIgdbGameId())
-                .gameName(request.getGameName())
+                .gameName(gameInfo.name() != null ? gameInfo.name() : request.getGameName())
                 .status(request.getStatus())
                 .platform(request.getPlatform())
                 .rating(request.getRating())

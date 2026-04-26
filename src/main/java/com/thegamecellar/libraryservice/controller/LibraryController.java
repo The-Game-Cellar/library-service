@@ -48,7 +48,8 @@ public class LibraryController {
             Authentication authentication,
             @Valid @RequestBody AddGameRequest request) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.status(HttpStatus.CREATED).body(libraryService.addGame(userId, request));
+        String bearerToken = JwtUtils.getBearerToken(authentication);
+        return ResponseEntity.status(HttpStatus.CREATED).body(libraryService.addGame(userId, request, bearerToken));
     }
 
     @PutMapping("/games/{gameId}")

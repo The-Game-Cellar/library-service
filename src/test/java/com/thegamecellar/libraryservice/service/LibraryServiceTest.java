@@ -24,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @ExtendWith(MockitoExtension.class)
 class LibraryServiceTest {
@@ -62,15 +64,59 @@ class LibraryServiceTest {
 
         UserGame saved = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
-        when(gameServiceClient.getGameInfo(3328)).thenReturn(
-                new GameServiceClient.GameInfo("https://example.com/witcher.jpg", List.of("RPG", "Action")));
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg", List.of("RPG", "Action")));
         when(userGameRepository.save(any())).thenReturn(saved);
 
-        UserGameDTO result = libraryService.addGame(USER_ID, request);
+        UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer test-token");
 
         assertThat(result.getGameName()).isEqualTo("The Witcher 3");
         assertThat(result.getStatus()).isEqualTo(GameStatus.BACKLOG);
         verify(userGameRepository).save(any());
+    }
+
+    @Test
+    void shouldUseGameNameFromGameServiceNotFromRequest() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(3328);
+        request.setGameName("Spoofed Name");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatform("PC");
+
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg", List.of("RPG")));
+        when(userGameRepository.save(any())).thenAnswer(inv -> {
+            UserGame g = inv.getArgument(0);
+            g.setId(1L);
+            return g;
+        });
+
+        UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer token");
+
+        assertThat(result.getGameName()).isEqualTo("The Witcher 3");
+    }
+
+    @Test
+    void shouldFallBackToRequestGameNameWhenGameServiceIsDown() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(3328);
+        request.setGameName("The Witcher 3");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatform("PC");
+
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo(null, null, List.of()));
+        when(userGameRepository.save(any())).thenAnswer(inv -> {
+            UserGame g = inv.getArgument(0);
+            g.setId(1L);
+            return g;
+        });
+
+        UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer token");
+
+        assertThat(result.getGameName()).isEqualTo("The Witcher 3");
     }
 
     @Test
@@ -83,7 +129,7 @@ class LibraryServiceTest {
 
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(true);
 
-        assertThatThrownBy(() -> libraryService.addGame(USER_ID, request))
+        assertThatThrownBy(() -> libraryService.addGame(USER_ID, request, "Bearer test-token"))
                 .isInstanceOf(GameAlreadyInCollectionException.class);
 
         verify(userGameRepository, never()).save(any());
@@ -135,7 +181,7 @@ class LibraryServiceTest {
         request.setStatus(GameStatus.PLAYING);
         request.setRating(9);
 
-        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         UserGameDTO result = libraryService.updateGame(USER_ID, 1L, request);
@@ -151,7 +197,7 @@ class LibraryServiceTest {
         UpdateGameRequest request = new UpdateGameRequest();
         request.setStatus(GameStatus.BACKLOG);
 
-        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         UserGameDTO result = libraryService.updateGame(USER_ID, 1L, request);
@@ -162,9 +208,6 @@ class LibraryServiceTest {
 
     @Test
     void shouldThrow404WhenUpdatingOtherUsersGame() {
-        UserGame otherGame = buildGame(1L, OTHER_USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.findById(1L)).thenReturn(Optional.of(otherGame));
-
         assertThatThrownBy(() -> libraryService.updateGame(USER_ID, 1L, new UpdateGameRequest()))
                 .isInstanceOf(GameNotFoundException.class);
     }
@@ -172,7 +215,7 @@ class LibraryServiceTest {
     @Test
     void shouldRemoveGame() {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
-        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
 
         libraryService.removeGame(USER_ID, 1L);
 
@@ -198,7 +241,7 @@ class LibraryServiceTest {
         UpdateGameRequest request = new UpdateGameRequest();
         request.setStatus(GameStatus.DUSTY);
 
-        when(userGameRepository.findById(1L)).thenReturn(Optional.of(game));
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
 
         assertThatThrownBy(() -> libraryService.updateGame(USER_ID, 1L, request))
                 .isInstanceOf(IllegalArgumentException.class)

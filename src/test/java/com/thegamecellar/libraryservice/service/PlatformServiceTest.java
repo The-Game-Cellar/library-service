@@ -76,8 +76,6 @@ class PlatformServiceTest {
                 .isPrimary(false)
                 .build();
 
-        when(userPlatformRepository.findById(1L)).thenReturn(Optional.of(otherUserPlatform));
-
         assertThatThrownBy(() -> platformService.removePlatform(USER_ID, 1L))
                 .isInstanceOf(PlatformNotFoundException.class);
 
