@@ -5,14 +5,17 @@ import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.service.LibraryService;
 import com.thegamecellar.libraryservice.util.JwtUtils;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/api/v1/library")
 @RequiredArgsConstructor
@@ -38,7 +41,7 @@ public class LibraryController {
     }
 
     @GetMapping("/games/{gameId}")
-    public ResponseEntity<UserGameDTO> getGame(Authentication authentication, @PathVariable Long gameId) {
+    public ResponseEntity<UserGameDTO> getGame(Authentication authentication, @Min(1) @PathVariable Long gameId) {
         String userId = JwtUtils.getUserId(authentication);
         return ResponseEntity.ok(libraryService.getGame(userId, gameId));
     }
@@ -55,14 +58,14 @@ public class LibraryController {
     @PutMapping("/games/{gameId}")
     public ResponseEntity<UserGameDTO> updateGame(
             Authentication authentication,
-            @PathVariable Long gameId,
+            @Min(1) @PathVariable Long gameId,
             @Valid @RequestBody UpdateGameRequest request) {
         String userId = JwtUtils.getUserId(authentication);
         return ResponseEntity.ok(libraryService.updateGame(userId, gameId, request));
     }
 
     @DeleteMapping("/games/{gameId}")
-    public ResponseEntity<Void> removeGame(Authentication authentication, @PathVariable Long gameId) {
+    public ResponseEntity<Void> removeGame(Authentication authentication, @Min(1) @PathVariable Long gameId) {
         String userId = JwtUtils.getUserId(authentication);
         libraryService.removeGame(userId, gameId);
         return ResponseEntity.noContent().build();

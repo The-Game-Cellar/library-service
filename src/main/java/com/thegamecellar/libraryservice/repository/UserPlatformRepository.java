@@ -13,4 +13,6 @@ public interface UserPlatformRepository extends JpaRepository<UserPlatform, Long
     boolean existsByUserIdAndPlatformName(String userId, String platformName);
 
     Optional<UserPlatform> findByIdAndUserId(Long id, String userId);
+
+    long deleteByUserId(String userId);
 }
