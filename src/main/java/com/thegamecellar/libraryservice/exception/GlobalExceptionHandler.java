@@ -1,55 +1,54 @@
 package com.thegamecellar.libraryservice.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.Map;
-
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(GameNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleGameNotFound(GameNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleGameNotFound(GameNotFoundException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", ex.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.NOT_FOUND.value(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(GameAlreadyInCollectionException.class)
-    public ResponseEntity<Map<String, String>> handleGameAlreadyInCollection(GameAlreadyInCollectionException ex) {
+    public ResponseEntity<ErrorResponse> handleGameAlreadyInCollection(GameAlreadyInCollectionException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", ex.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(PlatformNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handlePlatformNotFound(PlatformNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handlePlatformNotFound(PlatformNotFoundException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("error", ex.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.NOT_FOUND.value(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(PlatformAlreadyAddedException.class)
-    public ResponseEntity<Map<String, String>> handlePlatformAlreadyAdded(PlatformAlreadyAddedException ex) {
+    public ResponseEntity<ErrorResponse> handlePlatformAlreadyAdded(PlatformAlreadyAddedException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", ex.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "Duplicate entry — resource already exists"));
+                .body(ErrorResponse.of(HttpStatus.CONFLICT.value(), "Duplicate entry — resource already exists", request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", ex.getMessage()));
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage(), request));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "An unexpected error occurred"));
+                .body(ErrorResponse.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An unexpected error occurred", request));
     }
 }

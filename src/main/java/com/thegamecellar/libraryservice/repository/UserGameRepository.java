@@ -44,4 +44,6 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
             AND g.updatedAt < :threshold
             """)
     List<UserGame> findAllEligibleForDusty(@Param("threshold") LocalDateTime threshold);
+
+    long deleteByUserId(String userId);
 }
