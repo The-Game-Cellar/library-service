@@ -22,7 +22,8 @@ public class LibraryService {
     private final UserGameRepository userGameRepository;
     private final GameServiceClient gameServiceClient;
 
-    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre) {
+    @Transactional
+    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre, String bearerToken) {
         String searchPattern = (search != null && !search.isBlank())
                 ? "%" + search.toLowerCase() + "%"
                 : null;
@@ -30,7 +31,33 @@ public class LibraryService {
                 ? "%" + genre.toLowerCase() + "%"
                 : null;
         List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern, genrePattern);
-        return games.stream().map(this::toDTO).toList();
+        return games.stream()
+                .map(g -> healStaleMetadata(g, bearerToken))
+                .map(this::toDTO)
+                .toList();
+    }
+
+    /**
+     * Lazy backfill for rows whose genres / themes / tags columns are still NULL.
+     * Mirrors Game Service's stale-cache pattern. Sentinel: empty string "" marks "synced, none"
+     * so rows aren't re-checked forever. NULL = never synced.
+     */
+    private UserGame healStaleMetadata(UserGame game, String bearerToken) {
+        if (bearerToken == null) return game;
+        if (game.getThemes() != null && game.getTags() != null && game.getGenres() != null) return game;
+
+        GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(game.getIgdbGameId(), bearerToken);
+        if (info.name() == null && info.genres().isEmpty() && info.themes().isEmpty() && info.tags().isEmpty()) {
+            return game;
+        }
+        if (game.getGenres() == null) game.setGenres(joinOrEmpty(info.genres()));
+        if (game.getThemes() == null) game.setThemes(joinOrEmpty(info.themes()));
+        if (game.getTags() == null) game.setTags(joinOrEmpty(info.tags()));
+        return userGameRepository.save(game);
+    }
+
+    private static String joinOrEmpty(List<String> values) {
+        return (values == null || values.isEmpty()) ? "" : String.join(",", values);
     }
 
     public List<String> getGenres(String userId) {
@@ -43,6 +70,11 @@ public class LibraryService {
                 .distinct()
                 .sorted()
                 .toList();
+    }
+
+    /** Slim id-only view for excluding owned games from external surfaces (e.g. Coming Soon). */
+    public List<Integer> getOwnedIgdbGameIds(String userId) {
+        return userGameRepository.findIgdbGameIdsByUserId(userId);
     }
 
     public UserGameDTO getGame(String userId, Long gameId) {
@@ -67,7 +99,9 @@ public class LibraryService {
                 .rating(request.getRating())
                 .notes(request.getNotes())
                 .backgroundImage(gameInfo.backgroundImage())
-                .genres(gameInfo.genres().isEmpty() ? null : String.join(",", gameInfo.genres()))
+                .genres(joinOrEmpty(gameInfo.genres()))
+                .themes(joinOrEmpty(gameInfo.themes()))
+                .tags(joinOrEmpty(gameInfo.tags()))
                 .build();
         return toDTO(userGameRepository.save(game));
     }
@@ -139,15 +173,14 @@ public class LibraryService {
     }
 
     private UserGameDTO toDTO(UserGame game) {
-        List<String> genres = (game.getGenres() != null && !game.getGenres().isBlank())
-                ? List.of(game.getGenres().split(","))
-                : List.of();
         return UserGameDTO.builder()
                 .id(game.getId())
                 .igdbGameId(game.getIgdbGameId())
                 .gameName(game.getGameName())
                 .backgroundImage(game.getBackgroundImage())
-                .genres(genres)
+                .genres(splitCsv(game.getGenres()))
+                .themes(splitCsv(game.getThemes()))
+                .tags(splitCsv(game.getTags()))
                 .status(game.getStatus())
                 .rating(game.getRating())
                 .platform(game.getPlatform())
@@ -156,5 +189,11 @@ public class LibraryService {
                 .playtime(game.getPlaytime())
                 .notes(game.getNotes())
                 .build();
+    }
+
+    private static List<String> splitCsv(String csv) {
+        return (csv != null && !csv.isBlank())
+                ? List.of(csv.split(","))
+                : List.of();
     }
 }

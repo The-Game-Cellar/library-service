@@ -19,6 +19,8 @@ public class UserGameDTO {
     private String gameName;
     private String backgroundImage;
     private List<String> genres;
+    private List<String> themes;
+    private List<String> tags;
     private GameStatus status;
     private Integer rating;
     private String platform;

@@ -65,7 +65,8 @@ class LibraryServiceTest {
         UserGame saved = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
-                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg", List.of("RPG", "Action")));
+                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg",
+                        List.of("RPG", "Action"), List.of("Fantasy"), List.of("open world", "story rich")));
         when(userGameRepository.save(any())).thenReturn(saved);
 
         UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer test-token");
@@ -73,6 +74,30 @@ class LibraryServiceTest {
         assertThat(result.getGameName()).isEqualTo("The Witcher 3");
         assertThat(result.getStatus()).isEqualTo(GameStatus.BACKLOG);
         verify(userGameRepository).save(any());
+    }
+
+    @Test
+    void shouldCacheThemesAndTagsOnAdd() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(3328);
+        request.setGameName("The Witcher 3");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatform("PC");
+
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo("The Witcher 3", null,
+                        List.of("RPG"), List.of("Fantasy", "Historical"), List.of("open world", "story rich")));
+        when(userGameRepository.save(any())).thenAnswer(inv -> {
+            UserGame g = inv.getArgument(0);
+            g.setId(1L);
+            return g;
+        });
+
+        UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer token");
+
+        assertThat(result.getThemes()).containsExactly("Fantasy", "Historical");
+        assertThat(result.getTags()).containsExactly("open world", "story rich");
     }
 
     @Test
@@ -85,7 +110,8 @@ class LibraryServiceTest {
 
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
-                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg", List.of("RPG")));
+                new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg",
+                        List.of("RPG"), List.of(), List.of()));
         when(userGameRepository.save(any())).thenAnswer(inv -> {
             UserGame g = inv.getArgument(0);
             g.setId(1L);
@@ -107,7 +133,7 @@ class LibraryServiceTest {
 
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
-                new GameServiceClient.GameInfo(null, null, List.of()));
+                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of()));
         when(userGameRepository.save(any())).thenAnswer(inv -> {
             UserGame g = inv.getArgument(0);
             g.setId(1L);
@@ -141,7 +167,7 @@ class LibraryServiceTest {
         when(userGameRepository.findByUserIdWithFilters(USER_ID, null, null, null, null))
                 .thenReturn(List.of(game));
 
-        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null);
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null, null);
 
         assertThat(result).hasSize(1);
         verify(userGameRepository).findByUserIdWithFilters(USER_ID, null, null, null, null);
@@ -156,10 +182,62 @@ class LibraryServiceTest {
         when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("%rpg%")))
                 .thenReturn(List.of(rpgGame));
 
-        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, "RPG");
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, "RPG", null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getGenres()).contains("RPG");
+    }
+
+    @Test
+    void shouldHealStaleMetadataOnRead() {
+        UserGame stale = UserGame.builder()
+                .id(1L).userId(USER_ID).igdbGameId(3328).gameName("The Witcher 3")
+                .status(GameStatus.BACKLOG).platform("PC")
+                .dateAdded(LocalDateTime.now()).build();
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(List.of(stale));
+        when(gameServiceClient.getGameInfo(eq(3328), eq("Bearer t"))).thenReturn(
+                new GameServiceClient.GameInfo("The Witcher 3", null,
+                        List.of("RPG"), List.of("Fantasy"), List.of("open world")));
+        when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null, "Bearer t");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getThemes()).containsExactly("Fantasy");
+        assertThat(result.get(0).getTags()).containsExactly("open world");
+        verify(userGameRepository).save(any(UserGame.class));
+    }
+
+    @Test
+    void shouldNotHealRowsAlreadySynced() {
+        UserGame fresh = UserGame.builder()
+                .id(1L).userId(USER_ID).igdbGameId(3328).gameName("The Witcher 3")
+                .status(GameStatus.BACKLOG).platform("PC")
+                .genres("RPG").themes("Fantasy").tags("open world")
+                .dateAdded(LocalDateTime.now()).build();
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(List.of(fresh));
+
+        libraryService.getGames(USER_ID, null, null, null, null, "Bearer t");
+
+        verify(gameServiceClient, never()).getGameInfo(anyInt(), anyString());
+        verify(userGameRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNotHealWhenBearerTokenAbsent() {
+        UserGame stale = UserGame.builder()
+                .id(1L).userId(USER_ID).igdbGameId(3328).gameName("The Witcher 3")
+                .status(GameStatus.BACKLOG).platform("PC")
+                .dateAdded(LocalDateTime.now()).build();
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(List.of(stale));
+
+        libraryService.getGames(USER_ID, null, null, null, null, null);
+
+        verify(gameServiceClient, never()).getGameInfo(anyInt(), anyString());
+        verify(userGameRepository, never()).save(any());
     }
 
     @Test

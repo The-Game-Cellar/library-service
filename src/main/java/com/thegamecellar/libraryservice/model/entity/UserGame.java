@@ -53,6 +53,12 @@ public class UserGame {
     @Column(name = "genres")
     private String genres;
 
+    @Column(name = "themes", columnDefinition = "TEXT")
+    private String themes;
+
+    @Column(name = "tags", columnDefinition = "TEXT")
+    private String tags;
+
     @Column(name = "notes")
     private String notes;
 

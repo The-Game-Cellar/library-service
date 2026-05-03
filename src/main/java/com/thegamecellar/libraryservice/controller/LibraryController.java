@@ -31,13 +31,20 @@ public class LibraryController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String genre) {
         String userId = JwtUtils.getUserId(authentication);
-        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search, genre));
+        String bearerToken = JwtUtils.getBearerToken(authentication);
+        return ResponseEntity.ok(libraryService.getGames(userId, status, platform, search, genre, bearerToken));
     }
 
     @GetMapping("/genres")
     public ResponseEntity<List<String>> getGenres(Authentication authentication) {
         String userId = JwtUtils.getUserId(authentication);
         return ResponseEntity.ok(libraryService.getGenres(userId));
+    }
+
+    @GetMapping("/igdb-ids")
+    public ResponseEntity<List<Integer>> getOwnedIgdbIds(Authentication authentication) {
+        String userId = JwtUtils.getUserId(authentication);
+        return ResponseEntity.ok(libraryService.getOwnedIgdbGameIds(userId));
     }
 
     @GetMapping("/games/{gameId}")
