@@ -26,7 +26,13 @@ public class GameServiceClient {
     @Value("${game-service.url}")
     private String gameServiceUrl;
 
-    public record GameInfo(String name, String backgroundImage, List<String> genres) {}
+    public record GameInfo(
+            String name,
+            String backgroundImage,
+            List<String> genres,
+            List<String> themes,
+            List<String> tags
+    ) {}
 
     public GameInfo getGameInfo(Integer igdbGameId, String bearerToken) {
         try {
@@ -38,21 +44,33 @@ public class GameServiceClient {
                     new ParameterizedTypeReference<Map<String, Object>>() {}
             ).getBody();
 
-            if (response == null) return new GameInfo(null, null, Collections.emptyList());
+            if (response == null) return emptyInfo();
 
             String name = response.get("name") instanceof String s ? s : null;
             String backgroundImage = response.get("backgroundImage") instanceof String s ? s : null;
 
-            List<String> genres = Collections.emptyList();
-            if (response.get("genres") instanceof List<?> genreList) {
-                genres = genreList.stream().map(Object::toString).toList();
-            }
-
-            return new GameInfo(name, backgroundImage, genres);
+            return new GameInfo(
+                    name,
+                    backgroundImage,
+                    asStringList(response.get("genres")),
+                    asStringList(response.get("themes")),
+                    asStringList(response.get("tags"))
+            );
         } catch (RestClientException e) {
             log.warn("Failed to fetch game info for game {}: {}", igdbGameId, e.getMessage());
-            return new GameInfo(null, null, Collections.emptyList());
+            return emptyInfo();
         }
+    }
+
+    private static List<String> asStringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(Object::toString).toList();
+        }
+        return Collections.emptyList();
+    }
+
+    private static GameInfo emptyInfo() {
+        return new GameInfo(null, null, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
     private HttpEntity<Void> buildRequest(String bearerToken) {

@@ -44,7 +44,7 @@ public class AccountService {
      * DTO — fulfils GDPR right-to-portability.
      */
     public AccountExportDTO exportUser(String userId) {
-        List<UserGameDTO> games = libraryService.getGames(userId, null, null, null, null);
+        List<UserGameDTO> games = libraryService.getGames(userId, null, null, null, null, null);
         List<UserPlatformDTO> platforms = platformService.getPlatforms(userId);
         return AccountExportDTO.of(userId, games, platforms);
     }

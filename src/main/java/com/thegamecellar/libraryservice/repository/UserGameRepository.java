@@ -46,4 +46,7 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
     List<UserGame> findAllEligibleForDusty(@Param("threshold") LocalDateTime threshold);
 
     long deleteByUserId(String userId);
+
+    @Query("SELECT g.igdbGameId FROM UserGame g WHERE g.userId = :userId")
+    List<Integer> findIgdbGameIdsByUserId(@Param("userId") String userId);
 }
