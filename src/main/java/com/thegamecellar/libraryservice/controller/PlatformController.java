@@ -1,6 +1,7 @@
 package com.thegamecellar.libraryservice.controller;
 
 import com.thegamecellar.libraryservice.model.dto.AddPlatformRequest;
+import com.thegamecellar.libraryservice.model.dto.SetPrimaryRequest;
 import com.thegamecellar.libraryservice.model.dto.UserPlatformDTO;
 import com.thegamecellar.libraryservice.service.PlatformService;
 import com.thegamecellar.libraryservice.util.JwtUtils;
@@ -42,5 +43,14 @@ public class PlatformController {
         String userId = JwtUtils.getUserId(authentication);
         platformService.removePlatform(userId, platformId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{platformId}/primary")
+    public ResponseEntity<UserPlatformDTO> setPrimary(
+            Authentication authentication,
+            @Min(1) @PathVariable Long platformId,
+            @Valid @RequestBody SetPrimaryRequest request) {
+        String userId = JwtUtils.getUserId(authentication);
+        return ResponseEntity.ok(platformService.setPrimary(userId, platformId, request.getIsPrimary()));
     }
 }

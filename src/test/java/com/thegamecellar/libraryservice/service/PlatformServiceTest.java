@@ -81,4 +81,50 @@ class PlatformServiceTest {
 
         verify(userPlatformRepository, never()).delete(any());
     }
+
+    @Test
+    void shouldSetPrimaryTrue() {
+        UserPlatform existing = UserPlatform.builder()
+                .id(1L)
+                .userId(USER_ID)
+                .platformName("PC")
+                .isPrimary(false)
+                .build();
+
+        when(userPlatformRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(existing));
+        when(userPlatformRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserPlatformDTO result = platformService.setPrimary(USER_ID, 1L, true);
+
+        assertThat(result.getIsPrimary()).isTrue();
+        assertThat(existing.getIsPrimary()).isTrue();
+    }
+
+    @Test
+    void shouldSetPrimaryFalse() {
+        UserPlatform existing = UserPlatform.builder()
+                .id(1L)
+                .userId(USER_ID)
+                .platformName("PC")
+                .isPrimary(true)
+                .build();
+
+        when(userPlatformRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(existing));
+        when(userPlatformRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserPlatformDTO result = platformService.setPrimary(USER_ID, 1L, false);
+
+        assertThat(result.getIsPrimary()).isFalse();
+        assertThat(existing.getIsPrimary()).isFalse();
+    }
+
+    @Test
+    void shouldThrow404WhenSettingPrimaryOnOtherUsersPlatform() {
+        when(userPlatformRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> platformService.setPrimary(USER_ID, 1L, true))
+                .isInstanceOf(PlatformNotFoundException.class);
+
+        verify(userPlatformRepository, never()).save(any());
+    }
 }

@@ -17,4 +17,6 @@ public class UserStatsDTO {
     private Map<GameStatus, Long> byStatus;
     private Double averageRating;
     private long totalRated;
+    private Map<String, Long> byGenre;
+    private Map<String, Long> byPlatform;
 }

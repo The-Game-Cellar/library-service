@@ -42,6 +42,13 @@ public class PlatformService {
         userPlatformRepository.delete(platform);
     }
 
+    public UserPlatformDTO setPrimary(String userId, Long platformId, boolean isPrimary) {
+        UserPlatform platform = userPlatformRepository.findByIdAndUserId(platformId, userId)
+                .orElseThrow(() -> new PlatformNotFoundException(platformId));
+        platform.setIsPrimary(isPrimary);
+        return toDTO(userPlatformRepository.save(platform));
+    }
+
     private UserPlatformDTO toDTO(UserPlatform platform) {
         return UserPlatformDTO.builder()
                 .id(platform.getId())

@@ -347,6 +347,62 @@ class LibraryServiceTest {
         assertThat(stats.getByStatus().get(GameStatus.PLAYING)).isEqualTo(1L);
     }
 
+    @Test
+    void shouldAccumulateGenresFromCsvColumn() {
+        List<UserGame> games = List.of(
+                buildGameWithGenresAndPlatform(1L, "RPG,Action", "PC"),
+                buildGameWithGenresAndPlatform(2L, "RPG,Adventure", "PC"),
+                buildGameWithGenresAndPlatform(3L, "Action", "PlayStation 5"),
+                buildGameWithGenresAndPlatform(4L, "Strategy,RPG", "PC"),
+                buildGameWithGenresAndPlatform(5L, null, "Nintendo Switch")
+        );
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
+
+        UserStatsDTO stats = libraryService.getStats(USER_ID);
+
+        assertThat(stats.getByGenre()).containsEntry("RPG", 3L);
+        assertThat(stats.getByGenre()).containsEntry("Action", 2L);
+        assertThat(stats.getByGenre()).containsEntry("Adventure", 1L);
+        assertThat(stats.getByGenre()).containsEntry("Strategy", 1L);
+        assertThat(stats.getByGenre()).hasSize(4);
+    }
+
+    @Test
+    void shouldGroupPlatformsAndSkipNullOrBlank() {
+        UserGame nullPlatformGame = UserGame.builder()
+                .id(99L).userId(USER_ID).igdbGameId(99).gameName("Null Platform")
+                .status(GameStatus.BACKLOG).platform(null).genres("RPG")
+                .dateAdded(LocalDateTime.now()).build();
+        UserGame blankPlatformGame = UserGame.builder()
+                .id(100L).userId(USER_ID).igdbGameId(100).gameName("Blank Platform")
+                .status(GameStatus.BACKLOG).platform("  ").genres("RPG")
+                .dateAdded(LocalDateTime.now()).build();
+        List<UserGame> games = List.of(
+                buildGameWithGenresAndPlatform(1L, "RPG", "PC"),
+                buildGameWithGenresAndPlatform(2L, "Action", "PC"),
+                buildGameWithGenresAndPlatform(3L, "Action", "PlayStation 5"),
+                nullPlatformGame,
+                blankPlatformGame
+        );
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
+
+        UserStatsDTO stats = libraryService.getStats(USER_ID);
+
+        assertThat(stats.getByPlatform()).containsEntry("PC", 2L);
+        assertThat(stats.getByPlatform()).containsEntry("PlayStation 5", 1L);
+        assertThat(stats.getByPlatform()).hasSize(2);
+    }
+
+    @Test
+    void shouldReturnEmptyDistributionMapsForEmptyLibrary() {
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(List.of());
+
+        UserStatsDTO stats = libraryService.getStats(USER_ID);
+
+        assertThat(stats.getByGenre()).isEmpty();
+        assertThat(stats.getByPlatform()).isEmpty();
+    }
+
     private UserGame buildGameWithRating(Long id, GameStatus status, Integer rating) {
         return UserGame.builder()
                 .id(id)
@@ -356,6 +412,19 @@ class LibraryServiceTest {
                 .status(status)
                 .platform("PC")
                 .rating(rating)
+                .dateAdded(LocalDateTime.now().minusDays(10))
+                .build();
+    }
+
+    private UserGame buildGameWithGenresAndPlatform(Long id, String genres, String platform) {
+        return UserGame.builder()
+                .id(id)
+                .userId(USER_ID)
+                .igdbGameId(id.intValue())
+                .gameName("Game " + id)
+                .status(GameStatus.BACKLOG)
+                .platform(platform)
+                .genres(genres)
                 .dateAdded(LocalDateTime.now().minusDays(10))
                 .build();
     }

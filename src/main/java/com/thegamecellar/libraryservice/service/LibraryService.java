@@ -164,11 +164,26 @@ public class LibraryService {
         Double averageRating = ratings.isEmpty() ? null :
                 ratings.stream().mapToInt(Integer::intValue).average().orElse(0);
 
+        Map<String, Long> byGenre = games.stream()
+                .map(UserGame::getGenres)
+                .filter(g -> g != null && !g.isBlank())
+                .flatMap(g -> java.util.Arrays.stream(g.split(",")))
+                .map(String::trim)
+                .filter(g -> !g.isBlank())
+                .collect(Collectors.groupingBy(g -> g, Collectors.counting()));
+
+        Map<String, Long> byPlatform = games.stream()
+                .map(UserGame::getPlatform)
+                .filter(p -> p != null && !p.isBlank())
+                .collect(Collectors.groupingBy(p -> p, Collectors.counting()));
+
         return UserStatsDTO.builder()
                 .totalGames(games.size())
                 .byStatus(byStatus)
                 .averageRating(averageRating)
                 .totalRated(ratings.size())
+                .byGenre(byGenre)
+                .byPlatform(byPlatform)
                 .build();
     }
 
