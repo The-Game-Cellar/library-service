@@ -32,7 +32,9 @@ public class AccountController {
         return ResponseEntity.ok(Map.of(
                 "message", "Account data purged",
                 "gamesRemoved", result.gamesRemoved(),
-                "platformsRemoved", result.platformsRemoved()
+                "platformsRemoved", result.platformsRemoved(),
+                "genrePreferencesRemoved", result.genrePreferencesRemoved(),
+                "tagPreferencesRemoved", result.tagPreferencesRemoved()
         ));
     }
 

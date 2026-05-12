@@ -4,7 +4,9 @@ import com.thegamecellar.libraryservice.model.dto.AccountExportDTO;
 import com.thegamecellar.libraryservice.model.dto.UserGameDTO;
 import com.thegamecellar.libraryservice.model.dto.UserPlatformDTO;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
+import com.thegamecellar.libraryservice.repository.UserGenrePreferenceRepository;
 import com.thegamecellar.libraryservice.repository.UserPlatformRepository;
+import com.thegamecellar.libraryservice.repository.UserTagPreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,19 +26,25 @@ public class AccountService {
 
     private final UserGameRepository userGameRepository;
     private final UserPlatformRepository userPlatformRepository;
+    private final UserGenrePreferenceRepository userGenrePreferenceRepository;
+    private final UserTagPreferenceRepository userTagPreferenceRepository;
     private final LibraryService libraryService;
     private final PlatformService platformService;
 
     /**
      * Purge all data owned by {@code userId} from {@code library_db}. Returns
-     * the number of rows removed across both tables.
+     * the number of rows removed across every table that stores user-keyed data
+     * (games, platforms, genre preferences, tag preferences).
      */
     @Transactional
     public PurgeResult purgeUser(String userId) {
         long games = userGameRepository.deleteByUserId(userId);
         long platforms = userPlatformRepository.deleteByUserId(userId);
-        log.info("Account purge complete for userId={}: removed {} games + {} platforms", userId, games, platforms);
-        return new PurgeResult(games, platforms);
+        long genrePreferences = userGenrePreferenceRepository.deleteByUserId(userId);
+        long tagPreferences = userTagPreferenceRepository.deleteByUserId(userId);
+        log.info("Account purge complete for userId={}: removed {} games + {} platforms + {} genre prefs + {} tag prefs",
+                userId, games, platforms, genrePreferences, tagPreferences);
+        return new PurgeResult(games, platforms, genrePreferences, tagPreferences);
     }
 
     /**
@@ -49,5 +57,5 @@ public class AccountService {
         return AccountExportDTO.of(userId, games, platforms);
     }
 
-    public record PurgeResult(long gamesRemoved, long platformsRemoved) {}
+    public record PurgeResult(long gamesRemoved, long platformsRemoved, long genrePreferencesRemoved, long tagPreferencesRemoved) {}
 }

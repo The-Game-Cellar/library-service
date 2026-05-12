@@ -11,7 +11,10 @@ spring:
   application:
     name: library-service
   datasource:
-    url: ${LIBRARY_DB_URL:jdbc:postgresql://localhost:5433/library_db}
+    # IPv4 loopback in the default so Windows + Docker Desktop devs are not
+    # bitten by the wslrelay IPv6 quirk where `::1` is bound but refuses
+    # connections. Real deployments set LIBRARY_DB_URL explicitly.
+    url: ${LIBRARY_DB_URL:jdbc:postgresql://127.0.0.1:5433/library_db}
     username: ${LIBRARY_DB_USERNAME:postgres}
     password: ${LIBRARY_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
