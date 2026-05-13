@@ -11,10 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Admin operations on the user-library catalog. Currently authenticated-access only —
- * INFRA20 tracks adding a {@code realm_admin} role check before public launch.
- */
 @RestController
 @RequestMapping("/api/v1/library/admin")
 @RequiredArgsConstructor
