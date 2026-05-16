@@ -11,17 +11,29 @@ public record AccountExportDTO(
         String exportedAt,
         int gameCount,
         int platformCount,
+        int genrePreferenceCount,
+        int tagPreferenceCount,
         List<UserGameDTO> games,
-        List<UserPlatformDTO> platforms
+        List<UserPlatformDTO> platforms,
+        List<UserGenrePreferenceDTO> genrePreferences,
+        List<UserTagPreferenceDTO> tagPreferences
 ) {
-    public static AccountExportDTO of(String userId, List<UserGameDTO> games, List<UserPlatformDTO> platforms) {
+    public static AccountExportDTO of(String userId,
+                                      List<UserGameDTO> games,
+                                      List<UserPlatformDTO> platforms,
+                                      List<UserGenrePreferenceDTO> genrePreferences,
+                                      List<UserTagPreferenceDTO> tagPreferences) {
         return AccountExportDTO.builder()
                 .userId(userId)
                 .exportedAt(Instant.now().toString())
                 .gameCount(games.size())
                 .platformCount(platforms.size())
+                .genrePreferenceCount(genrePreferences.size())
+                .tagPreferenceCount(tagPreferences.size())
                 .games(games)
                 .platforms(platforms)
+                .genrePreferences(genrePreferences)
+                .tagPreferences(tagPreferences)
                 .build();
     }
 }
