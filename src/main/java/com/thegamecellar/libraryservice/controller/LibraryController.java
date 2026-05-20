@@ -53,6 +53,12 @@ public class LibraryController {
         return ResponseEntity.ok(libraryService.getGame(userId, gameId));
     }
 
+    @GetMapping("/games/by-igdb/{igdbId}")
+    public ResponseEntity<UserGameDTO> getGameByIgdbId(Authentication authentication, @Min(1) @PathVariable Integer igdbId) {
+        String userId = JwtUtils.getUserId(authentication);
+        return ResponseEntity.ok(libraryService.getGameByIgdbId(userId, igdbId));
+    }
+
     @PostMapping("/games")
     public ResponseEntity<UserGameDTO> addGame(
             Authentication authentication,

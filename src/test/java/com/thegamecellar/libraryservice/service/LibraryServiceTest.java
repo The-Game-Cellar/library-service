@@ -291,6 +291,26 @@ class LibraryServiceTest {
     }
 
     @Test
+    void shouldReturnGameByIgdbId() {
+        UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
+        when(userGameRepository.findByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(Optional.of(game));
+
+        UserGameDTO result = libraryService.getGameByIgdbId(USER_ID, 3328);
+
+        assertThat(result.getIgdbGameId()).isEqualTo(3328);
+        assertThat(result.getGameName()).isEqualTo("The Witcher 3");
+    }
+
+    @Test
+    void shouldThrow404WhenGameByIgdbIdNotInCollection() {
+        when(userGameRepository.findByUserIdAndIgdbGameId(USER_ID, 9999)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> libraryService.getGameByIgdbId(USER_ID, 9999))
+                .isInstanceOf(GameNotFoundException.class)
+                .hasMessageContaining("9999");
+    }
+
+    @Test
     void shouldRemoveGame() {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
