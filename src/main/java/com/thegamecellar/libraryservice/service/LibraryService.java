@@ -83,6 +83,12 @@ public class LibraryService {
                 .orElseThrow(() -> new GameNotFoundException(gameId));
     }
 
+    public UserGameDTO getGameByIgdbId(String userId, Integer igdbGameId) {
+        return userGameRepository.findByUserIdAndIgdbGameId(userId, igdbGameId)
+                .map(this::toDTO)
+                .orElseThrow(() -> GameNotFoundException.forIgdbGameId(igdbGameId));
+    }
+
     @Transactional
     public UserGameDTO addGame(String userId, AddGameRequest request, String bearerToken) {
         if (userGameRepository.existsByUserIdAndIgdbGameId(userId, request.getIgdbGameId())) {
