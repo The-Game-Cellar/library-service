@@ -31,7 +31,8 @@ public class GameServiceClient {
             String backgroundImage,
             List<String> genres,
             List<String> themes,
-            List<String> tags
+            List<String> tags,
+            String released
     ) {}
 
     public GameInfo getGameInfo(Integer igdbGameId, String bearerToken) {
@@ -48,13 +49,15 @@ public class GameServiceClient {
 
             String name = response.get("name") instanceof String s ? s : null;
             String backgroundImage = response.get("backgroundImage") instanceof String s ? s : null;
+            String released = response.get("released") instanceof String s ? s : null;
 
             return new GameInfo(
                     name,
                     backgroundImage,
                     asStringList(response.get("genres")),
                     asStringList(response.get("themes")),
-                    asStringList(response.get("tags"))
+                    asStringList(response.get("tags")),
+                    released
             );
         } catch (RestClientException e) {
             log.warn("Failed to fetch game info for game {}: {}", igdbGameId, e.getMessage());
@@ -70,7 +73,7 @@ public class GameServiceClient {
     }
 
     private static GameInfo emptyInfo() {
-        return new GameInfo(null, null, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        return new GameInfo(null, null, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), null);
     }
 
     private HttpEntity<Void> buildRequest(String bearerToken) {

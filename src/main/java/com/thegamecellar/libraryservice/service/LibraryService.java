@@ -44,7 +44,7 @@ public class LibraryService {
      */
     private UserGame healStaleMetadata(UserGame game, String bearerToken) {
         if (bearerToken == null) return game;
-        if (game.getThemes() != null && game.getTags() != null && game.getGenres() != null) return game;
+        if (game.getThemes() != null && game.getTags() != null && game.getGenres() != null && game.getReleased() != null) return game;
 
         GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(game.getIgdbGameId(), bearerToken);
         if (info.name() == null && info.genres().isEmpty() && info.themes().isEmpty() && info.tags().isEmpty()) {
@@ -53,6 +53,7 @@ public class LibraryService {
         if (game.getGenres() == null) game.setGenres(joinOrEmpty(info.genres()));
         if (game.getThemes() == null) game.setThemes(joinOrEmpty(info.themes()));
         if (game.getTags() == null) game.setTags(joinOrEmpty(info.tags()));
+        if (game.getReleased() == null) game.setReleased(info.released() == null ? "" : info.released());
         return userGameRepository.save(game);
     }
 
@@ -108,6 +109,7 @@ public class LibraryService {
                 .genres(joinOrEmpty(gameInfo.genres()))
                 .themes(joinOrEmpty(gameInfo.themes()))
                 .tags(joinOrEmpty(gameInfo.tags()))
+                .released(gameInfo.released() == null ? "" : gameInfo.released())
                 .build();
         return toDTO(userGameRepository.save(game));
     }
@@ -202,6 +204,7 @@ public class LibraryService {
                 .genres(splitCsv(game.getGenres()))
                 .themes(splitCsv(game.getThemes()))
                 .tags(splitCsv(game.getTags()))
+                .released(game.getReleased())
                 .status(game.getStatus())
                 .rating(game.getRating())
                 .platform(game.getPlatform())

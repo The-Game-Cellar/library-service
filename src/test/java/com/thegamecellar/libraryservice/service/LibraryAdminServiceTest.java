@@ -46,7 +46,7 @@ class LibraryAdminServiceTest {
         when(gameServiceClient.getGameInfo(eq(100), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("Some Game", null,
                         List.of("RPG", "Adventure", "Action"),
-                        List.of(), List.of()));
+                        List.of(), List.of(), null));
 
         Map<String, Object> result = service.refreshGameInfo("Bearer token");
 
@@ -62,6 +62,7 @@ class LibraryAdminServiceTest {
         UserGame existing = userGame(1L, 100, "RPG,Adventure");
         existing.setThemes("Fantasy");
         existing.setTags("");
+        existing.setReleased("");
         Page<UserGame> page = new PageImpl<>(List.of(existing));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
@@ -69,7 +70,7 @@ class LibraryAdminServiceTest {
                 new GameServiceClient.GameInfo("Some Game", null,
                         List.of("Adventure", "RPG"),       // same set, different order
                         List.of("Fantasy"),
-                        List.of()));
+                        List.of(), null));
 
         service.refreshGameInfo("Bearer token");
 
@@ -83,7 +84,7 @@ class LibraryAdminServiceTest {
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         when(gameServiceClient.getGameInfo(anyInt(), anyString())).thenReturn(
-                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of()));
+                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of(), null));
 
         Map<String, Object> result = service.refreshGameInfo("Bearer token");
 
@@ -106,11 +107,11 @@ class LibraryAdminServiceTest {
         // g1 — only genres change
         when(gameServiceClient.getGameInfo(eq(100), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("G1", null,
-                        List.of("RPG", "Sci-fi"), List.of("Fantasy"), List.of()));
+                        List.of("RPG", "Sci-fi"), List.of("Fantasy"), List.of(), null));
         // g2 — themes change too
         when(gameServiceClient.getGameInfo(eq(200), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("G2", null,
-                        List.of("Action"), List.of("Sci-fi"), List.of()));
+                        List.of("Action"), List.of("Sci-fi"), List.of(), null));
 
         Map<String, Object> result = service.refreshGameInfo("Bearer token");
 
@@ -131,7 +132,7 @@ class LibraryAdminServiceTest {
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page0).thenReturn(page1);
 
         lenient().when(gameServiceClient.getGameInfo(anyInt(), anyString())).thenReturn(
-                new GameServiceClient.GameInfo("Test", null, List.of(), List.of(), List.of()));
+                new GameServiceClient.GameInfo("Test", null, List.of(), List.of(), List.of(), null));
 
         service.refreshGameInfo("Bearer token");
 

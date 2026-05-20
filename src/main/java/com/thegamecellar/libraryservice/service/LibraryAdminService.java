@@ -39,7 +39,7 @@ public class LibraryAdminService {
     @Transactional
     public Map<String, Object> refreshGameInfo(String bearerToken) {
         long examined = 0, updated = 0;
-        long genresChanged = 0, themesChanged = 0, tagsChanged = 0;
+        long genresChanged = 0, themesChanged = 0, tagsChanged = 0, releasedChanged = 0;
         long gameServiceMisses = 0;
         List<String> sampleUpdated = new ArrayList<>();
 
@@ -61,6 +61,7 @@ public class LibraryAdminService {
                 String newGenres = joinOrEmpty(info.genres());
                 String newThemes = joinOrEmpty(info.themes());
                 String newTags = joinOrEmpty(info.tags());
+                String newReleased = info.released() == null ? "" : info.released();
 
                 boolean changed = false;
                 if (!setEqualsCsv(game.getGenres(), newGenres)) {
@@ -78,6 +79,11 @@ public class LibraryAdminService {
                     tagsChanged++;
                     changed = true;
                 }
+                if (!java.util.Objects.equals(game.getReleased(), newReleased)) {
+                    game.setReleased(newReleased);
+                    releasedChanged++;
+                    changed = true;
+                }
 
                 if (changed) {
                     updated++;
@@ -92,8 +98,8 @@ public class LibraryAdminService {
             page++;
         }
 
-        log.info("Library refresh complete — examined={} updated={} genresChanged={} themesChanged={} tagsChanged={} gameServiceMisses={}",
-                examined, updated, genresChanged, themesChanged, tagsChanged, gameServiceMisses);
+        log.info("Library refresh complete — examined={} updated={} genresChanged={} themesChanged={} tagsChanged={} releasedChanged={} gameServiceMisses={}",
+                examined, updated, genresChanged, themesChanged, tagsChanged, releasedChanged, gameServiceMisses);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("examined", examined);
@@ -101,6 +107,7 @@ public class LibraryAdminService {
         result.put("genresChanged", genresChanged);
         result.put("themesChanged", themesChanged);
         result.put("tagsChanged", tagsChanged);
+        result.put("releasedChanged", releasedChanged);
         result.put("gameServiceMisses", gameServiceMisses);
         result.put("sampleUpdated", sampleUpdated);
         return result;

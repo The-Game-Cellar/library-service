@@ -66,7 +66,7 @@ class LibraryServiceTest {
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg",
-                        List.of("RPG", "Action"), List.of("Fantasy"), List.of("open world", "story rich")));
+                        List.of("RPG", "Action"), List.of("Fantasy"), List.of("open world", "story rich"), "2015-05-19"));
         when(userGameRepository.save(any())).thenReturn(saved);
 
         UserGameDTO result = libraryService.addGame(USER_ID, request, "Bearer test-token");
@@ -87,7 +87,7 @@ class LibraryServiceTest {
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("The Witcher 3", null,
-                        List.of("RPG"), List.of("Fantasy", "Historical"), List.of("open world", "story rich")));
+                        List.of("RPG"), List.of("Fantasy", "Historical"), List.of("open world", "story rich"), null));
         when(userGameRepository.save(any())).thenAnswer(inv -> {
             UserGame g = inv.getArgument(0);
             g.setId(1L);
@@ -111,7 +111,7 @@ class LibraryServiceTest {
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("The Witcher 3", "https://example.com/witcher.jpg",
-                        List.of("RPG"), List.of(), List.of()));
+                        List.of("RPG"), List.of(), List.of(), null));
         when(userGameRepository.save(any())).thenAnswer(inv -> {
             UserGame g = inv.getArgument(0);
             g.setId(1L);
@@ -133,7 +133,7 @@ class LibraryServiceTest {
 
         when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
         when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
-                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of()));
+                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of(), null));
         when(userGameRepository.save(any())).thenAnswer(inv -> {
             UserGame g = inv.getArgument(0);
             g.setId(1L);
@@ -198,7 +198,7 @@ class LibraryServiceTest {
                 .thenReturn(List.of(stale));
         when(gameServiceClient.getGameInfo(eq(3328), eq("Bearer t"))).thenReturn(
                 new GameServiceClient.GameInfo("The Witcher 3", null,
-                        List.of("RPG"), List.of("Fantasy"), List.of("open world")));
+                        List.of("RPG"), List.of("Fantasy"), List.of("open world"), "2015-05-19"));
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, null, "Bearer t");
@@ -214,7 +214,7 @@ class LibraryServiceTest {
         UserGame fresh = UserGame.builder()
                 .id(1L).userId(USER_ID).igdbGameId(3328).gameName("The Witcher 3")
                 .status(GameStatus.BACKLOG).platform("PC")
-                .genres("RPG").themes("Fantasy").tags("open world")
+                .genres("RPG").themes("Fantasy").tags("open world").released("2015-05-19")
                 .dateAdded(LocalDateTime.now()).build();
         when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(List.of(fresh));
