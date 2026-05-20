@@ -59,6 +59,9 @@ public class UserGame {
     @Column(name = "tags", columnDefinition = "TEXT")
     private String tags;
 
+    @Column(name = "released", length = 20)
+    private String released;
+
     @Column(name = "notes")
     private String notes;
 
