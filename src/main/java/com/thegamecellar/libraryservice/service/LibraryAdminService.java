@@ -17,14 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * One-shot admin operation that walks every {@code user_games} row, re-fetches game info
- * from Game Service, and updates the cached genres / themes / tags CSV columns whenever
- * the upstream set differs from the local copy. Drives propagation of derived-genre
- * additions (Game Service rule changes) into existing user libraries. The per-read
- * {@code healStaleMetadata} path only fixes NULL columns, so already-populated rows
- * never see new derived genres without this refresh.
- */
+// Propagates upstream derived-genre changes into existing libraries; per-read healStaleMetadata only fills NULLs.
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,7 +46,7 @@ public class LibraryAdminService {
 
                 GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(game.getIgdbGameId(), bearerToken);
                 if (isEmpty(info)) {
-                    // Game Service down or game not cached upstream. Leave the row alone.
+                    // Game Service down or game not cached upstream; leave the row alone.
                     gameServiceMisses++;
                     continue;
                 }
@@ -113,7 +106,6 @@ public class LibraryAdminService {
         return result;
     }
 
-    /** Compares two CSV strings as sets (order-independent, blank-tolerant). */
     private static boolean setEqualsCsv(String a, String b) {
         return splitToSet(a).equals(splitToSet(b));
     }

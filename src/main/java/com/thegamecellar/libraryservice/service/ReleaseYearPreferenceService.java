@@ -16,9 +16,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class ReleaseYearPreferenceService {
 
-    // Authoritative bucket set. Unknown labels supplied by the client are silently dropped here
-    // rather than rejected with 400, so a future bucket-scheme tweak (e.g. adding "2030s") does
-    // not break already-saved rows during the rollout window.
+    // Unknown labels silently dropped (not 400) so a future scheme tweak doesn't break saved rows mid-rollout.
     public static final Set<String> VALID_BUCKETS =
             Set.of("Pre-1990", "1990s", "2000s", "2010s", "2020s");
 

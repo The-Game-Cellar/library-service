@@ -12,10 +12,8 @@ public interface UserGenrePreferenceRepository extends JpaRepository<UserGenrePr
 
     List<UserGenrePreference> findByUserId(String userId);
 
-    // Bulk DELETE via JPQL with flushAutomatically + clearAutomatically so the SQL DELETE runs
-    // before the subsequent saveAll INSERTs in the replace-all transaction. Without these, the
-    // Hibernate action queue orders inserts before deletes within the same transaction and the
-    // (user_id, genre_name) unique constraint fires when re-inserting an existing name.
+    // flush + clear so DELETE runs before saveAll INSERT in the replace-all txn; otherwise Hibernate orders
+    // inserts before deletes and the (user_id, genre_name) unique constraint fires on re-insert.
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM UserGenrePreference p WHERE p.userId = :userId")
     int deleteByUserId(@Param("userId") String userId);

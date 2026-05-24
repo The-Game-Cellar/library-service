@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.util.List;
 
-/** Replace-all body for PUT /api/v1/library/release-year-preferences. Empty list clears all. */
+// Replace-all body; empty list clears all.
 @Data
 public class UpdateReleaseYearPreferencesRequest {
     @NotNull
