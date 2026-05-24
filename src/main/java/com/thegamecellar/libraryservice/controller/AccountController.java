@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * GDPR-driven account-wide endpoints. {@code userId} always pulled from the
- * JWT — never from path or body.
+ * JWT, never from path or body.
  */
 @RestController
 @RequestMapping("/api/v1/library/account")

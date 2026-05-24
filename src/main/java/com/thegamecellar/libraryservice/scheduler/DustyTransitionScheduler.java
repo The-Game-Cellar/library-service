@@ -33,7 +33,7 @@ public class DustyTransitionScheduler {
             userGameRepository.saveAll(eligible);
             log.info("Transitioned {} games to DUSTY status", eligible.size());
         } catch (Exception e) {
-            log.error("DUSTY transition job failed — will retry at next scheduled run (03:00)", e);
+            log.error("DUSTY transition job failed, will retry at next scheduled run (03:00)", e);
         }
     }
 }

@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * One-shot admin operation that walks every {@code user_games} row, re-fetches game info
  * from Game Service, and updates the cached genres / themes / tags CSV columns whenever
  * the upstream set differs from the local copy. Drives propagation of derived-genre
- * additions (Game Service rule changes) into existing user libraries — the per-read
+ * additions (Game Service rule changes) into existing user libraries. The per-read
  * {@code healStaleMetadata} path only fixes NULL columns, so already-populated rows
  * never see new derived genres without this refresh.
  */
@@ -53,7 +53,7 @@ public class LibraryAdminService {
 
                 GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(game.getIgdbGameId(), bearerToken);
                 if (isEmpty(info)) {
-                    // Game Service down or game not cached upstream — leave the row alone.
+                    // Game Service down or game not cached upstream. Leave the row alone.
                     gameServiceMisses++;
                     continue;
                 }
@@ -98,7 +98,7 @@ public class LibraryAdminService {
             page++;
         }
 
-        log.info("Library refresh complete — examined={} updated={} genresChanged={} themesChanged={} tagsChanged={} releasedChanged={} gameServiceMisses={}",
+        log.info("Library refresh complete: examined={} updated={} genresChanged={} themesChanged={} tagsChanged={} releasedChanged={} gameServiceMisses={}",
                 examined, updated, genresChanged, themesChanged, tagsChanged, releasedChanged, gameServiceMisses);
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -113,7 +113,7 @@ public class LibraryAdminService {
         return result;
     }
 
-    /** Compares two CSV strings as sets — order-independent, blank-tolerant. */
+    /** Compares two CSV strings as sets (order-independent, blank-tolerant). */
     private static boolean setEqualsCsv(String a, String b) {
         return splitToSet(a).equals(splitToSet(b));
     }
