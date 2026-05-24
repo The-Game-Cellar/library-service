@@ -104,11 +104,11 @@ class LibraryAdminServiceTest {
         Page<UserGame> page = new PageImpl<>(List.of(g1, g2));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
-        // g1 — only genres change
+        // g1: only genres change
         when(gameServiceClient.getGameInfo(eq(100), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("G1", null,
                         List.of("RPG", "Sci-fi"), List.of("Fantasy"), List.of(), null));
-        // g2 — themes change too
+        // g2: themes change too
         when(gameServiceClient.getGameInfo(eq(200), anyString())).thenReturn(
                 new GameServiceClient.GameInfo("G2", null,
                         List.of("Action"), List.of("Sci-fi"), List.of(), null));
