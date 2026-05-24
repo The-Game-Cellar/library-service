@@ -37,11 +37,7 @@ public class LibraryService {
                 .toList();
     }
 
-    /**
-     * Lazy backfill for rows whose genres / themes / tags columns are still NULL.
-     * Mirrors Game Service's stale-cache pattern. Sentinel: empty string "" marks "synced, none"
-     * so rows aren't re-checked forever. NULL = never synced.
-     */
+    // Empty string "" = synced-but-none; NULL = never synced. Prevents re-checking rows that genuinely have no value.
     private UserGame healStaleMetadata(UserGame game, String bearerToken) {
         if (bearerToken == null) return game;
         if (game.getThemes() != null && game.getTags() != null && game.getGenres() != null && game.getReleased() != null) return game;
@@ -73,7 +69,6 @@ public class LibraryService {
                 .toList();
     }
 
-    /** Slim id-only view for excluding owned games from external surfaces (e.g. Coming Soon). */
     public List<Integer> getOwnedIgdbGameIds(String userId) {
         return userGameRepository.findIgdbGameIdsByUserId(userId);
     }

@@ -16,11 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Account-level operations cutting across {@link LibraryService} and
- * {@link PlatformService}. Handles GDPR right-to-deletion (purge) and
- * right-to-portability (export) for a single user.
- */
+// GDPR right-to-deletion + right-to-portability for a single user across every user-keyed table.
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,11 +31,6 @@ public class AccountService {
     private final GenrePreferenceService genrePreferenceService;
     private final TagPreferenceService tagPreferenceService;
 
-    /**
-     * Purge all data owned by {@code userId} from {@code library_db}. Returns
-     * the number of rows removed across every table that stores user-keyed data
-     * (games, platforms, genre preferences, tag preferences).
-     */
     @Transactional
     public PurgeResult purgeUser(String userId) {
         long games = userGameRepository.deleteByUserId(userId);
@@ -51,11 +42,6 @@ public class AccountService {
         return new PurgeResult(games, platforms, genrePreferences, tagPreferences);
     }
 
-    /**
-     * Snapshot all data owned by {@code userId} into a portable JSON-friendly
-     * DTO. Fulfils GDPR right-to-portability across every user-keyed table:
-     * games, platforms, genre preferences, tag preferences.
-     */
     public AccountExportDTO exportUser(String userId) {
         List<UserGameDTO> games = libraryService.getGames(userId, null, null, null, null, null);
         List<UserPlatformDTO> platforms = platformService.getPlatforms(userId);

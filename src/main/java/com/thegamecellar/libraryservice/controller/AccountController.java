@@ -14,10 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * GDPR-driven account-wide endpoints. {@code userId} always pulled from the
- * JWT, never from path or body.
- */
+// GDPR endpoints. userId always comes from JWT, never path or body.
 @RestController
 @RequestMapping("/api/v1/library/account")
 @RequiredArgsConstructor
