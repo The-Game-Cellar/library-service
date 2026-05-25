@@ -9,7 +9,6 @@ import com.thegamecellar.libraryservice.model.dto.UserStatsDTO;
 import com.thegamecellar.libraryservice.model.entity.UserGame;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -101,6 +101,51 @@ class LibraryServiceTest {
     }
 
     @Test
+    void shouldMarkMetadataSyncedAtOnAddWhenUpstreamResponds() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(3328);
+        request.setGameName("The Witcher 3");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatform("PC");
+
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo("The Witcher 3", null,
+                        List.of("RPG"), List.of(), List.of(), null));
+        when(userGameRepository.save(any())).thenAnswer(inv -> {
+            UserGame g = inv.getArgument(0);
+            g.setId(1L);
+            return g;
+        });
+
+        libraryService.addGame(USER_ID, request, "Bearer token");
+
+        verify(userGameRepository).save(argThat(g -> g.getMetadataSyncedAt() != null));
+    }
+
+    @Test
+    void shouldLeaveMetadataSyncedAtNullOnAddWhenUpstreamDown() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(3328);
+        request.setGameName("The Witcher 3");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatform("PC");
+
+        when(userGameRepository.existsByUserIdAndIgdbGameId(USER_ID, 3328)).thenReturn(false);
+        when(gameServiceClient.getGameInfo(eq(3328), anyString())).thenReturn(
+                new GameServiceClient.GameInfo(null, null, List.of(), List.of(), List.of(), null));
+        when(userGameRepository.save(any())).thenAnswer(inv -> {
+            UserGame g = inv.getArgument(0);
+            g.setId(1L);
+            return g;
+        });
+
+        libraryService.addGame(USER_ID, request, "Bearer token");
+
+        verify(userGameRepository).save(argThat(g -> g.getMetadataSyncedAt() == null));
+    }
+
+    @Test
     void shouldUseGameNameFromGameServiceNotFromRequest() {
         AddGameRequest request = new AddGameRequest();
         request.setIgdbGameId(3328);
@@ -164,6 +209,7 @@ class LibraryServiceTest {
     @Test
     void shouldOnlyReturnGamesForCurrentUser() {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
+        game.setMetadataSyncedAt(LocalDateTime.now());
         when(userGameRepository.findByUserIdWithFilters(USER_ID, null, null, null, null))
                 .thenReturn(List.of(game));
 
@@ -177,15 +223,27 @@ class LibraryServiceTest {
     void shouldFilterByGenre() {
         UserGame rpgGame = UserGame.builder()
                 .id(1L).userId(USER_ID).igdbGameId(1).gameName("Witcher 3")
-                .status(GameStatus.BACKLOG).platform("PC").genres("RPG,Action")
+                .status(GameStatus.BACKLOG).platform("PC")
+                .genres(new ArrayList<>(List.of("RPG", "Action")))
+                .metadataSyncedAt(LocalDateTime.now())
                 .dateAdded(LocalDateTime.now().minusDays(1)).build();
-        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("%rpg%")))
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("rpg")))
                 .thenReturn(List.of(rpgGame));
 
         List<UserGameDTO> result = libraryService.getGames(USER_ID, null, null, null, "RPG", null);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getGenres()).contains("RPG");
+    }
+
+    @Test
+    void shouldPassExactLowercasedGenreKeyNotLikePattern() {
+        when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), eq("rpg")))
+                .thenReturn(List.of());
+
+        libraryService.getGames(USER_ID, null, null, null, "RPG", null);
+
+        verify(userGameRepository).findByUserIdWithFilters(USER_ID, null, null, null, "rpg");
     }
 
     @Test
@@ -206,6 +264,7 @@ class LibraryServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getThemes()).containsExactly("Fantasy");
         assertThat(result.get(0).getTags()).containsExactly("open world");
+        assertThat(stale.getMetadataSyncedAt()).isNotNull();
         verify(userGameRepository).save(any(UserGame.class));
     }
 
@@ -214,7 +273,11 @@ class LibraryServiceTest {
         UserGame fresh = UserGame.builder()
                 .id(1L).userId(USER_ID).igdbGameId(3328).gameName("The Witcher 3")
                 .status(GameStatus.BACKLOG).platform("PC")
-                .genres("RPG").themes("Fantasy").tags("open world").released("2015-05-19")
+                .genres(new ArrayList<>(List.of("RPG")))
+                .themes(new ArrayList<>(List.of("Fantasy")))
+                .tags(new ArrayList<>(List.of("open world")))
+                .released("2015-05-19")
+                .metadataSyncedAt(LocalDateTime.now())
                 .dateAdded(LocalDateTime.now()).build();
         when(userGameRepository.findByUserIdWithFilters(eq(USER_ID), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(List.of(fresh));
@@ -368,13 +431,13 @@ class LibraryServiceTest {
     }
 
     @Test
-    void shouldAccumulateGenresFromCsvColumn() {
+    void shouldAccumulateGenresFromCollection() {
         List<UserGame> games = List.of(
-                buildGameWithGenresAndPlatform(1L, "RPG,Action", "PC"),
-                buildGameWithGenresAndPlatform(2L, "RPG,Adventure", "PC"),
-                buildGameWithGenresAndPlatform(3L, "Action", "PlayStation 5"),
-                buildGameWithGenresAndPlatform(4L, "Strategy,RPG", "PC"),
-                buildGameWithGenresAndPlatform(5L, null, "Nintendo Switch")
+                buildGameWithGenresAndPlatform(1L, List.of("RPG", "Action"), "PC"),
+                buildGameWithGenresAndPlatform(2L, List.of("RPG", "Adventure"), "PC"),
+                buildGameWithGenresAndPlatform(3L, List.of("Action"), "PlayStation 5"),
+                buildGameWithGenresAndPlatform(4L, List.of("Strategy", "RPG"), "PC"),
+                buildGameWithGenresAndPlatform(5L, List.of(), "Nintendo Switch")
         );
         when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
 
@@ -391,16 +454,16 @@ class LibraryServiceTest {
     void shouldGroupPlatformsAndSkipNullOrBlank() {
         UserGame nullPlatformGame = UserGame.builder()
                 .id(99L).userId(USER_ID).igdbGameId(99).gameName("Null Platform")
-                .status(GameStatus.BACKLOG).platform(null).genres("RPG")
+                .status(GameStatus.BACKLOG).platform(null).genres(new ArrayList<>(List.of("RPG")))
                 .dateAdded(LocalDateTime.now()).build();
         UserGame blankPlatformGame = UserGame.builder()
                 .id(100L).userId(USER_ID).igdbGameId(100).gameName("Blank Platform")
-                .status(GameStatus.BACKLOG).platform("  ").genres("RPG")
+                .status(GameStatus.BACKLOG).platform("  ").genres(new ArrayList<>(List.of("RPG")))
                 .dateAdded(LocalDateTime.now()).build();
         List<UserGame> games = List.of(
-                buildGameWithGenresAndPlatform(1L, "RPG", "PC"),
-                buildGameWithGenresAndPlatform(2L, "Action", "PC"),
-                buildGameWithGenresAndPlatform(3L, "Action", "PlayStation 5"),
+                buildGameWithGenresAndPlatform(1L, List.of("RPG"), "PC"),
+                buildGameWithGenresAndPlatform(2L, List.of("Action"), "PC"),
+                buildGameWithGenresAndPlatform(3L, List.of("Action"), "PlayStation 5"),
                 nullPlatformGame,
                 blankPlatformGame
         );
@@ -436,7 +499,7 @@ class LibraryServiceTest {
                 .build();
     }
 
-    private UserGame buildGameWithGenresAndPlatform(Long id, String genres, String platform) {
+    private UserGame buildGameWithGenresAndPlatform(Long id, List<String> genres, String platform) {
         return UserGame.builder()
                 .id(id)
                 .userId(USER_ID)
@@ -444,7 +507,7 @@ class LibraryServiceTest {
                 .gameName("Game " + id)
                 .status(GameStatus.BACKLOG)
                 .platform(platform)
-                .genres(genres)
+                .genres(new ArrayList<>(genres))
                 .dateAdded(LocalDateTime.now().minusDays(10))
                 .build();
     }

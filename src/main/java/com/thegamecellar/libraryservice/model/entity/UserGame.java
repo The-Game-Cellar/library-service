@@ -3,8 +3,11 @@ package com.thegamecellar.libraryservice.model.entity;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "user_games", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "igdb_game_id"}))
@@ -50,20 +53,35 @@ public class UserGame {
     @Column(name = "background_image")
     private String backgroundImage;
 
-    @Column(name = "genres")
-    private String genres;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_game_genres", joinColumns = @JoinColumn(name = "user_game_id"))
+    @Column(name = "genres", length = 100)
+    @BatchSize(size = 200)
+    @Builder.Default
+    private List<String> genres = new ArrayList<>();
 
-    @Column(name = "themes", columnDefinition = "TEXT")
-    private String themes;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_game_themes", joinColumns = @JoinColumn(name = "user_game_id"))
+    @Column(name = "themes", length = 100)
+    @BatchSize(size = 200)
+    @Builder.Default
+    private List<String> themes = new ArrayList<>();
 
-    @Column(name = "tags", columnDefinition = "TEXT")
-    private String tags;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_game_tags", joinColumns = @JoinColumn(name = "user_game_id"))
+    @Column(name = "tags", length = 100)
+    @BatchSize(size = 200)
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
 
     @Column(name = "released", length = 20)
     private String released;
 
     @Column(name = "notes")
     private String notes;
+
+    @Column(name = "metadata_synced_at")
+    private LocalDateTime metadataSyncedAt;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,41 +28,38 @@ public class LibraryService {
         String searchPattern = (search != null && !search.isBlank())
                 ? "%" + search.toLowerCase() + "%"
                 : null;
-        String genrePattern = (genre != null && !genre.isBlank())
-                ? "%" + genre.toLowerCase() + "%"
+        String genreKey = (genre != null && !genre.isBlank())
+                ? genre.toLowerCase()
                 : null;
-        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern, genrePattern);
+        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern, genreKey);
         return games.stream()
                 .map(g -> healStaleMetadata(g, bearerToken))
                 .map(this::toDTO)
                 .toList();
     }
 
-    // Empty string "" = synced-but-none; NULL = never synced. Prevents re-checking rows that genuinely have no value.
+    // metadata_synced_at == null means the row was added before Game Service responded (or before
+    // sync ran). One marker covers genres + themes + tags + released as a unit since they are
+    // always written together.
     private UserGame healStaleMetadata(UserGame game, String bearerToken) {
         if (bearerToken == null) return game;
-        if (game.getThemes() != null && game.getTags() != null && game.getGenres() != null && game.getReleased() != null) return game;
+        if (game.getMetadataSyncedAt() != null) return game;
 
         GameServiceClient.GameInfo info = gameServiceClient.getGameInfo(game.getIgdbGameId(), bearerToken);
         if (info.name() == null && info.genres().isEmpty() && info.themes().isEmpty() && info.tags().isEmpty()) {
             return game;
         }
-        if (game.getGenres() == null) game.setGenres(joinOrEmpty(info.genres()));
-        if (game.getThemes() == null) game.setThemes(joinOrEmpty(info.themes()));
-        if (game.getTags() == null) game.setTags(joinOrEmpty(info.tags()));
-        if (game.getReleased() == null) game.setReleased(info.released() == null ? "" : info.released());
+        game.setGenres(new ArrayList<>(info.genres()));
+        game.setThemes(new ArrayList<>(info.themes()));
+        game.setTags(new ArrayList<>(info.tags()));
+        game.setReleased(info.released() == null ? "" : info.released());
+        game.setMetadataSyncedAt(LocalDateTime.now());
         return userGameRepository.save(game);
-    }
-
-    private static String joinOrEmpty(List<String> values) {
-        return (values == null || values.isEmpty()) ? "" : String.join(",", values);
     }
 
     public List<String> getGenres(String userId) {
         return userGameRepository.findByUserId(userId).stream()
-                .map(UserGame::getGenres)
-                .filter(g -> g != null && !g.isBlank())
-                .flatMap(g -> java.util.Arrays.stream(g.split(",")))
+                .flatMap(g -> g.getGenres().stream())
                 .map(String::trim)
                 .filter(g -> !g.isBlank())
                 .distinct()
@@ -91,6 +89,10 @@ public class LibraryService {
             throw new GameAlreadyInCollectionException(request.getIgdbGameId());
         }
         GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getIgdbGameId(), bearerToken);
+        boolean upstreamResponded = !(gameInfo.name() == null
+                && gameInfo.genres().isEmpty()
+                && gameInfo.themes().isEmpty()
+                && gameInfo.tags().isEmpty());
 
         UserGame game = UserGame.builder()
                 .userId(userId)
@@ -101,10 +103,11 @@ public class LibraryService {
                 .rating(request.getRating())
                 .notes(request.getNotes())
                 .backgroundImage(gameInfo.backgroundImage())
-                .genres(joinOrEmpty(gameInfo.genres()))
-                .themes(joinOrEmpty(gameInfo.themes()))
-                .tags(joinOrEmpty(gameInfo.tags()))
+                .genres(new ArrayList<>(gameInfo.genres()))
+                .themes(new ArrayList<>(gameInfo.themes()))
+                .tags(new ArrayList<>(gameInfo.tags()))
                 .released(gameInfo.released() == null ? "" : gameInfo.released())
+                .metadataSyncedAt(upstreamResponded ? LocalDateTime.now() : null)
                 .build();
         return toDTO(userGameRepository.save(game));
     }
@@ -168,9 +171,7 @@ public class LibraryService {
                 ratings.stream().mapToInt(Integer::intValue).average().orElse(0);
 
         Map<String, Long> byGenre = games.stream()
-                .map(UserGame::getGenres)
-                .filter(g -> g != null && !g.isBlank())
-                .flatMap(g -> java.util.Arrays.stream(g.split(",")))
+                .flatMap(g -> g.getGenres().stream())
                 .map(String::trim)
                 .filter(g -> !g.isBlank())
                 .collect(Collectors.groupingBy(g -> g, Collectors.counting()));
@@ -196,9 +197,9 @@ public class LibraryService {
                 .igdbGameId(game.getIgdbGameId())
                 .gameName(game.getGameName())
                 .backgroundImage(game.getBackgroundImage())
-                .genres(splitCsv(game.getGenres()))
-                .themes(splitCsv(game.getThemes()))
-                .tags(splitCsv(game.getTags()))
+                .genres(List.copyOf(game.getGenres()))
+                .themes(List.copyOf(game.getThemes()))
+                .tags(List.copyOf(game.getTags()))
                 .released(game.getReleased())
                 .status(game.getStatus())
                 .rating(game.getRating())
@@ -208,11 +209,5 @@ public class LibraryService {
                 .playtime(game.getPlaytime())
                 .notes(game.getNotes())
                 .build();
-    }
-
-    private static List<String> splitCsv(String csv) {
-        return (csv != null && !csv.isBlank())
-                ? List.of(csv.split(","))
-                : List.of();
     }
 }
