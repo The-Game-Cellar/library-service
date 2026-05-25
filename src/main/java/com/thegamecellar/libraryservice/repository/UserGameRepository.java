@@ -23,12 +23,15 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
     Optional<UserGame> findByIdAndUserId(Long id, String userId);
 
     @Query("""
-            SELECT g FROM UserGame g
+            SELECT DISTINCT g FROM UserGame g
             WHERE g.userId = :userId
             AND (:status IS NULL OR g.status = :status)
             AND (:platform IS NULL OR g.platform = :platform)
             AND (:search IS NULL OR LOWER(g.gameName) LIKE :search)
-            AND (:genre IS NULL OR LOWER(g.genres) LIKE :genre)
+            AND (:genre IS NULL OR EXISTS (
+                SELECT 1 FROM UserGame g2 JOIN g2.genres ge
+                WHERE g2.id = g.id AND LOWER(ge) = :genre
+            ))
             """)
     List<UserGame> findByUserIdWithFilters(
             @Param("userId") String userId,

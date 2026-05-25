@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +39,7 @@ class LibraryAdminServiceTest {
 
     @Test
     void refreshGameInfo_updates_genres_when_upstream_set_differs() {
-        UserGame existing = userGame(1L, 100, "RPG,Adventure");
+        UserGame existing = userGame(1L, 100, List.of("RPG", "Adventure"));
         Page<UserGame> page = new PageImpl<>(List.of(existing));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
@@ -54,14 +55,15 @@ class LibraryAdminServiceTest {
         assertThat(result).containsEntry("updated", 1L);
         assertThat(result).containsEntry("genresChanged", 1L);
         assertThat(existing.getGenres()).contains("Action");
+        assertThat(existing.getMetadataSyncedAt()).isNotNull();
         verify(userGameRepository).save(existing);
     }
 
     @Test
     void refreshGameInfo_skips_save_when_upstream_set_matches_cached() {
-        UserGame existing = userGame(1L, 100, "RPG,Adventure");
-        existing.setThemes("Fantasy");
-        existing.setTags("");
+        UserGame existing = userGame(1L, 100, List.of("RPG", "Adventure"));
+        existing.setThemes(new ArrayList<>(List.of("Fantasy")));
+        existing.setTags(new ArrayList<>());
         existing.setReleased("");
         Page<UserGame> page = new PageImpl<>(List.of(existing));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
@@ -79,7 +81,7 @@ class LibraryAdminServiceTest {
 
     @Test
     void refreshGameInfo_skips_row_when_game_service_returns_empty() {
-        UserGame existing = userGame(1L, 100, "RPG");
+        UserGame existing = userGame(1L, 100, List.of("RPG"));
         Page<UserGame> page = new PageImpl<>(List.of(existing));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
@@ -95,12 +97,12 @@ class LibraryAdminServiceTest {
 
     @Test
     void refreshGameInfo_counts_each_dimension_independently() {
-        UserGame g1 = userGame(1L, 100, "RPG");
-        g1.setThemes("Fantasy");
-        g1.setTags("");
-        UserGame g2 = userGame(2L, 200, "Action");
-        g2.setThemes("");
-        g2.setTags("");
+        UserGame g1 = userGame(1L, 100, List.of("RPG"));
+        g1.setThemes(new ArrayList<>(List.of("Fantasy")));
+        g1.setTags(new ArrayList<>());
+        UserGame g2 = userGame(2L, 200, List.of("Action"));
+        g2.setThemes(new ArrayList<>());
+        g2.setTags(new ArrayList<>());
         Page<UserGame> page = new PageImpl<>(List.of(g1, g2));
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page);
 
@@ -127,8 +129,8 @@ class LibraryAdminServiceTest {
         // Force two pages by sizing each page at 1 with total=2.
         Pageable p0 = org.springframework.data.domain.PageRequest.of(0, 1);
         Pageable p1 = org.springframework.data.domain.PageRequest.of(1, 1);
-        Page<UserGame> page0 = new PageImpl<>(List.of(userGame(1L, 100, "")), p0, 2);
-        Page<UserGame> page1 = new PageImpl<>(List.of(userGame(2L, 200, "")), p1, 2);
+        Page<UserGame> page0 = new PageImpl<>(List.of(userGame(1L, 100, List.of())), p0, 2);
+        Page<UserGame> page1 = new PageImpl<>(List.of(userGame(2L, 200, List.of())), p1, 2);
         when(userGameRepository.findAll(any(Pageable.class))).thenReturn(page0).thenReturn(page1);
 
         lenient().when(gameServiceClient.getGameInfo(anyInt(), anyString())).thenReturn(
@@ -139,16 +141,14 @@ class LibraryAdminServiceTest {
         verify(userGameRepository, times(2)).findAll(any(Pageable.class));
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────────
-
-    private UserGame userGame(Long id, Integer igdbId, String genres) {
+    private UserGame userGame(Long id, Integer igdbId, List<String> genres) {
         UserGame g = new UserGame();
         g.setId(id);
         g.setIgdbGameId(igdbId);
         g.setGameName("Game " + id);
-        g.setGenres(genres);
-        g.setThemes("");
-        g.setTags("");
+        g.setGenres(new ArrayList<>(genres));
+        g.setThemes(new ArrayList<>());
+        g.setTags(new ArrayList<>());
         return g;
     }
 }

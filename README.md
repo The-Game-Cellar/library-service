@@ -59,10 +59,13 @@ Schema managed by **Flyway** (`src/main/resources/db/migration/V*__*.sql`). Hibe
 user_games
   id, user_id (Keycloak UUID, VARCHAR, no FK),
   igdb_game_id (IGDB reference, no FK),
-  game_name, background_image, genres (CSV, cached from Game Service),
+  game_name, background_image, released (cached from Game Service),
   status, rating (1-10), platform,
   date_added, last_played, playtime, notes,
-  created_at, updated_at
+  metadata_synced_at, created_at, updated_at
+
+user_game_genres   user_game_themes   user_game_tags
+  user_game_id FK (ON DELETE CASCADE), value VARCHAR(100), composite PK + reverse index
 
 user_platforms
   id, user_id, platform_name, is_primary
@@ -73,7 +76,7 @@ user_genre_preferences   user_tag_preferences   user_release_year_preferences
 
 `user_id` is the Keycloak UUID stored as `VARCHAR`. No cross-service foreign keys; the service stays independently deployable.
 
-`game_name`, `background_image`, and `genres` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library.
+`game_name`, `background_image`, and `released` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library. Multi-valued attributes (genres, themes, tags) live in dedicated `@ElementCollection` join tables with composite PK and a reverse index on the value column. Genre filtering runs as a JPQL `EXISTS` subquery with exact-match `LOWER(value) = :key` — no `LIKE` wildcards. `metadata_synced_at` is the single marker for the lazy-heal path; NULL means the row was added before Game Service responded.
 
 ## API Endpoints
 

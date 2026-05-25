@@ -9,15 +9,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-// Propagates upstream derived-genre changes into existing libraries; per-read healStaleMetadata only fills NULLs.
+// Propagates upstream derived-genre changes into existing libraries; per-read healStaleMetadata only fills NULL-marker rows.
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -51,24 +51,21 @@ public class LibraryAdminService {
                     continue;
                 }
 
-                String newGenres = joinOrEmpty(info.genres());
-                String newThemes = joinOrEmpty(info.themes());
-                String newTags = joinOrEmpty(info.tags());
                 String newReleased = info.released() == null ? "" : info.released();
-
                 boolean changed = false;
-                if (!setEqualsCsv(game.getGenres(), newGenres)) {
-                    game.setGenres(newGenres);
+
+                if (!setEquals(game.getGenres(), info.genres())) {
+                    replaceCollection(game.getGenres(), info.genres());
                     genresChanged++;
                     changed = true;
                 }
-                if (!setEqualsCsv(game.getThemes(), newThemes)) {
-                    game.setThemes(newThemes);
+                if (!setEquals(game.getThemes(), info.themes())) {
+                    replaceCollection(game.getThemes(), info.themes());
                     themesChanged++;
                     changed = true;
                 }
-                if (!setEqualsCsv(game.getTags(), newTags)) {
-                    game.setTags(newTags);
+                if (!setEquals(game.getTags(), info.tags())) {
+                    replaceCollection(game.getTags(), info.tags());
                     tagsChanged++;
                     changed = true;
                 }
@@ -79,6 +76,7 @@ public class LibraryAdminService {
                 }
 
                 if (changed) {
+                    game.setMetadataSyncedAt(LocalDateTime.now());
                     updated++;
                     userGameRepository.save(game);
                     if (sampleUpdated.size() < SAMPLE_SIZE) {
@@ -106,20 +104,32 @@ public class LibraryAdminService {
         return result;
     }
 
-    private static boolean setEqualsCsv(String a, String b) {
-        return splitToSet(a).equals(splitToSet(b));
+    // Preserves the Hibernate-managed collection reference. Clearing + addAll triggers orphan
+    // removal + insert; replacing the field outright would detach the original collection and
+    // cause "found shared references" exceptions on flush.
+    private static void replaceCollection(List<String> existing, List<String> incoming) {
+        existing.clear();
+        if (incoming != null) {
+            existing.addAll(incoming);
+        }
     }
 
-    private static Set<String> splitToSet(String csv) {
-        if (csv == null || csv.isBlank()) return Set.of();
-        return java.util.Arrays.stream(csv.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toCollection(HashSet::new));
+    private static boolean setEquals(List<String> a, List<String> b) {
+        return toSet(a).equals(toSet(b));
     }
 
-    private static String joinOrEmpty(List<String> values) {
-        return (values == null || values.isEmpty()) ? "" : String.join(",", values);
+    private static Set<String> toSet(List<String> values) {
+        if (values == null || values.isEmpty()) return Set.of();
+        Set<String> result = new HashSet<>();
+        for (String v : values) {
+            if (v != null) {
+                String trimmed = v.trim();
+                if (!trimmed.isEmpty()) {
+                    result.add(trimmed);
+                }
+            }
+        }
+        return result;
     }
 
     private static boolean isEmpty(GameServiceClient.GameInfo info) {
