@@ -21,6 +21,7 @@ public class ReleaseYearPreferenceService {
             Set.of("Pre-1990", "1990s", "2000s", "2010s", "2020s");
 
     private final UserReleaseYearPreferenceRepository repository;
+    private final LibraryWritePublisher writePublisher;
 
     public List<UserReleaseYearPreferenceDTO> getPreferences(String userId) {
         return repository.findByUserId(userId).stream()
@@ -38,6 +39,7 @@ public class ReleaseYearPreferenceService {
                 .map(label -> UserReleaseYearPreference.builder().userId(userId).bucketLabel(label).build())
                 .toList();
 
+        writePublisher.publish(userId);
         if (rows.isEmpty()) return List.of();
         repository.saveAll(rows);
         return rows.stream().map(p -> new UserReleaseYearPreferenceDTO(p.getBucketLabel())).toList();

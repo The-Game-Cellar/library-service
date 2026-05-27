@@ -25,6 +25,9 @@ class TagPreferenceServiceTest {
     @Mock
     private UserTagPreferenceRepository repository;
 
+    @Mock
+    private LibraryWritePublisher writePublisher;
+
     @InjectMocks
     private TagPreferenceService service;
 

@@ -26,6 +26,12 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -41,6 +47,10 @@ game-service:
   url: ${GAME_SERVICE_URL:http://localhost:8081}
   connect-timeout: ${GAME_SERVICE_CONNECT_TIMEOUT:2000}
   read-timeout: ${GAME_SERVICE_READ_TIMEOUT:5000}
+
+security:
+  internal:
+    token: ${INTERNAL_SERVICE_TOKEN:}
 
 logging:
   pattern:

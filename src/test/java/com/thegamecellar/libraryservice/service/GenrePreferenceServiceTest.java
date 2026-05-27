@@ -25,6 +25,9 @@ class GenrePreferenceServiceTest {
     @Mock
     private UserGenrePreferenceRepository repository;
 
+    @Mock
+    private LibraryWritePublisher writePublisher;
+
     @InjectMocks
     private GenrePreferenceService service;
 
