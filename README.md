@@ -76,7 +76,7 @@ user_genre_preferences   user_tag_preferences   user_release_year_preferences
 
 `user_id` is the Keycloak UUID stored as `VARCHAR`. No cross-service foreign keys; the service stays independently deployable.
 
-`game_name`, `background_image`, and `released` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library. Multi-valued attributes (genres, themes, tags) live in dedicated `@ElementCollection` join tables with composite PK and a reverse index on the value column. Genre filtering runs as a JPQL `EXISTS` subquery with exact-match `LOWER(value) = :key` — no `LIKE` wildcards. `metadata_synced_at` is the single marker for the lazy-heal path; NULL means the row was added before Game Service responded.
+`game_name`, `background_image`, and `released` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library. Multi-valued attributes (genres, themes, tags) live in dedicated `@ElementCollection` join tables with composite PK and a reverse index on the value column. Genre filtering runs as a JPQL `EXISTS` subquery with exact-match `LOWER(value) = :key`, no `LIKE` wildcards. `metadata_synced_at` is the single marker for the lazy-heal path; NULL means the row was added before Game Service responded.
 
 ## API Endpoints
 
@@ -117,6 +117,22 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 
 Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clearAutomatically)` so the transaction does not hit the `(user_id, name)` UNIQUE constraint on the subsequent insert.
 
+### Internal service-to-service (no user JWT)
+
+| Method | Path                                                            | Description                                              |
+|--------|-----------------------------------------------------------------|----------------------------------------------------------|
+| GET    | `/internal/library/users/{userId}/games`                        | Full games list (metadata-heal skipped).                 |
+| GET    | `/internal/library/users/{userId}/platforms`                    | User platforms.                                          |
+| GET    | `/internal/library/users/{userId}/preferences/genres`           | Declared genre preferences.                              |
+| GET    | `/internal/library/users/{userId}/preferences/tags`             | Declared tag preferences.                                |
+| GET    | `/internal/library/users/{userId}/preferences/release-years`    | Declared release-year-bucket preferences.                |
+
+Used by the recommendation-service per-user worker, which runs scheduled without a user JWT. Protected by `InternalAuthFilter`: requires header `X-Internal-Token: {INTERNAL_SERVICE_TOKEN}` (constant-time compare, fail-closed when the env var is unset). The api-gateway has no route for `/internal/**`, so the paths are only reachable inside the docker network.
+
+## Library-write event publishing
+
+`LibraryWritePublisher` emits the changed `userId` (JWT-extracted) to the Redis `library-write` channel after every write that affects recommendations: `addGame`, `updateGame`, `removeGame`, and the three preference services (`GenrePreferenceService`, `TagPreferenceService`, `ReleaseYearPreferenceService`). Best-effort: a Redis outage is logged at WARN and the write still commits; recommendation-service's hourly stale-pool scan catches the user up later. Subscriber lives in recommendation-service (`LibraryWriteSubscriber`).
+
 ## Configuration
 
 | Variable                  | Default                                          | Purpose                          |
@@ -128,6 +144,10 @@ Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clea
 | `DDL_AUTO`                | `validate`                                       | Hibernate DDL mode               |
 | `KEYCLOAK_ISSUER_URI`     | `http://localhost:8080/realms/game-cellar`       | JWT issuer                       |
 | `GAME_SERVICE_URL`        | `http://localhost:8081`                          | Used for enrichment on `addGame` |
+| `INTERNAL_SERVICE_TOKEN`  | (required for /internal/** auth)                 | Shared secret accepted by `InternalAuthFilter` on `/internal/**`. Fail-closed when unset. |
+| `REDIS_HOST`              | `localhost`                                      | Redis host (powers the library-write pub/sub channel). |
+| `REDIS_PORT`              | `6379`                                           | Redis port. |
+| `REDIS_PASSWORD`          | (required when Redis auth on)                    | Redis password. Library-write publisher silently no-ops if Redis is unreachable; rec-service hourly TTL scanner catches the user up later. |
 
 ## Run Locally
 

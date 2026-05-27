@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 public class GenrePreferenceService {
 
     private final UserGenrePreferenceRepository repository;
+    private final LibraryWritePublisher writePublisher;
 
     public List<UserGenrePreferenceDTO> getPreferences(String userId) {
         return repository.findByUserId(userId).stream()
@@ -32,6 +33,7 @@ public class GenrePreferenceService {
                 .map(name -> UserGenrePreference.builder().userId(userId).genreName(name).build())
                 .toList();
 
+        writePublisher.publish(userId);
         if (rows.isEmpty()) return List.of();
         repository.saveAll(rows);
         return rows.stream().map(p -> new UserGenrePreferenceDTO(p.getGenreName())).toList();

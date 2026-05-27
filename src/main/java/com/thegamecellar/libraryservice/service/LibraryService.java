@@ -22,6 +22,7 @@ public class LibraryService {
 
     private final UserGameRepository userGameRepository;
     private final GameServiceClient gameServiceClient;
+    private final LibraryWritePublisher writePublisher;
 
     @Transactional
     public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre, String bearerToken) {
@@ -109,7 +110,9 @@ public class LibraryService {
                 .released(gameInfo.released() == null ? "" : gameInfo.released())
                 .metadataSyncedAt(upstreamResponded ? LocalDateTime.now() : null)
                 .build();
-        return toDTO(userGameRepository.save(game));
+        UserGameDTO saved = toDTO(userGameRepository.save(game));
+        writePublisher.publish(userId);
+        return saved;
     }
 
     @Transactional
@@ -132,7 +135,12 @@ public class LibraryService {
         if (request.getPlaytime() != null) game.setPlaytime(request.getPlaytime());
         if (request.getNotes() != null) game.setNotes(request.getNotes());
 
-        return toDTO(userGameRepository.save(game));
+        UserGameDTO saved = toDTO(userGameRepository.save(game));
+        // Profile-affecting fields (status, rating, platform) all trigger an invalidate. The
+        // alternative of diffing first to skip pure-notes updates is not worth the complexity;
+        // rec-service dedupes via compute_queue upsert anyway.
+        writePublisher.publish(userId);
+        return saved;
     }
 
     @Transactional
@@ -140,6 +148,7 @@ public class LibraryService {
         UserGame game = userGameRepository.findByIdAndUserId(gameId, userId)
                 .orElseThrow(() -> new GameNotFoundException(gameId));
         userGameRepository.delete(game);
+        writePublisher.publish(userId);
     }
 
     public List<UserGameDTO> getByStatus(String userId, GameStatus status) {

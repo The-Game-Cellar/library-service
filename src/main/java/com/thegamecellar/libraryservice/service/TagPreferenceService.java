@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 public class TagPreferenceService {
 
     private final UserTagPreferenceRepository repository;
+    private final LibraryWritePublisher writePublisher;
 
     public List<UserTagPreferenceDTO> getPreferences(String userId) {
         return repository.findByUserId(userId).stream()
@@ -32,6 +33,7 @@ public class TagPreferenceService {
                 .map(name -> UserTagPreference.builder().userId(userId).tagName(name).build())
                 .toList();
 
+        writePublisher.publish(userId);
         if (rows.isEmpty()) return List.of();
         repository.saveAll(rows);
         return rows.stream().map(p -> new UserTagPreferenceDTO(p.getTagName())).toList();

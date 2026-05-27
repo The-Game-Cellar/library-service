@@ -36,6 +36,9 @@ class LibraryServiceTest {
     @Mock
     private GameServiceClient gameServiceClient;
 
+    @Mock
+    private LibraryWritePublisher writePublisher;
+
     @InjectMocks
     private LibraryService libraryService;
 

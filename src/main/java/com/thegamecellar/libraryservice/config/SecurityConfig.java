@@ -29,6 +29,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/v3/api-docs").permitAll()
+                        // Service-to-service path: api-gateway blocks /internal/** at the edge so
+                        // these are only reachable on the docker-network.
+                        .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/api/v1/library/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

@@ -25,6 +25,9 @@ class ReleaseYearPreferenceServiceTest {
     @Mock
     private UserReleaseYearPreferenceRepository repository;
 
+    @Mock
+    private LibraryWritePublisher writePublisher;
+
     @InjectMocks
     private ReleaseYearPreferenceService service;
 
