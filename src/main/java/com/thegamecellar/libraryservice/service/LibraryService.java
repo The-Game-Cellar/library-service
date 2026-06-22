@@ -68,6 +68,16 @@ public class LibraryService {
                 .toList();
     }
 
+    public List<String> getGamePlatforms(String userId) {
+        return userGameRepository.findByUserId(userId).stream()
+                .map(UserGame::getPlatform)
+                .filter(p -> p != null && !p.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
     public List<Integer> getOwnedIgdbGameIds(String userId) {
         return userGameRepository.findIgdbGameIdsByUserId(userId);
     }
