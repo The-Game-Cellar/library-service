@@ -41,6 +41,12 @@ public class LibraryController {
         return ResponseEntity.ok(libraryService.getGenres(userId));
     }
 
+    @GetMapping("/games/platforms")
+    public ResponseEntity<List<String>> getGamePlatforms(Authentication authentication) {
+        String userId = JwtUtils.getUserId(authentication);
+        return ResponseEntity.ok(libraryService.getGamePlatforms(userId));
+    }
+
     @GetMapping("/igdb-ids")
     public ResponseEntity<List<Integer>> getOwnedIgdbIds(Authentication authentication) {
         String userId = JwtUtils.getUserId(authentication);

@@ -489,6 +489,30 @@ class LibraryServiceTest {
         assertThat(stats.getByPlatform()).isEmpty();
     }
 
+    @Test
+    void shouldReturnDistinctSortedPlatformsSkippingNullAndBlank() {
+        UserGame nullPlatformGame = UserGame.builder()
+                .id(99L).userId(USER_ID).igdbGameId(99).gameName("Null Platform")
+                .status(GameStatus.BACKLOG).platform(null).genres(new ArrayList<>(List.of("RPG")))
+                .dateAdded(LocalDateTime.now()).build();
+        UserGame blankPlatformGame = UserGame.builder()
+                .id(100L).userId(USER_ID).igdbGameId(100).gameName("Blank Platform")
+                .status(GameStatus.BACKLOG).platform("  ").genres(new ArrayList<>(List.of("RPG")))
+                .dateAdded(LocalDateTime.now()).build();
+        List<UserGame> games = List.of(
+                buildGameWithGenresAndPlatform(1L, List.of("RPG"), "PlayStation 5"),
+                buildGameWithGenresAndPlatform(2L, List.of("Action"), "PC"),
+                buildGameWithGenresAndPlatform(3L, List.of("Action"), "PC"),
+                nullPlatformGame,
+                blankPlatformGame
+        );
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
+
+        List<String> platforms = libraryService.getGamePlatforms(USER_ID);
+
+        assertThat(platforms).containsExactly("PC", "PlayStation 5");
+    }
+
     private UserGame buildGameWithRating(Long id, GameStatus status, Integer rating) {
         return UserGame.builder()
                 .id(id)

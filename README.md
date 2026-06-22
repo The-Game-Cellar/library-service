@@ -100,6 +100,7 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 | Method | Path                                | Description                                                                  |
 |--------|-------------------------------------|------------------------------------------------------------------------------|
 | GET    | `/api/v1/library/genres`            | Sorted distinct genres in the user's library.                                |
+| GET    | `/api/v1/library/games/platforms`   | Sorted distinct platforms present in the user's library (Library filter facet). |
 | GET    | `/api/v1/library/stats`             | Totals by status, average rating, distribution by genre + platform.          |
 | GET    | `/api/v1/library/platforms`         | User's platforms.                                                            |
 | POST   | `/api/v1/library/platforms`         | Add platform.                                                                |
