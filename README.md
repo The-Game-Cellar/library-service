@@ -2,6 +2,7 @@
 
 > Owns the user's game collection: statuses, ratings, platforms, and declared preferences (genre, tag, release-year). Runs the daily DUSTY sweep that auto-archives stale entries.
 
+[![CI](https://github.com/The-Game-Cellar/library-service/actions/workflows/ci.yml/badge.svg)](https://github.com/The-Game-Cellar/library-service/actions/workflows/ci.yml)
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0-brightgreen)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)
