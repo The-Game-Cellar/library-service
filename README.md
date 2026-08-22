@@ -73,6 +73,9 @@ user_platforms
 
 user_genre_preferences   user_tag_preferences   user_release_year_preferences
   user_id + name                user_id + name             user_id + decade
+
+user_onboarding
+  user_id (PK), completed_at
 ```
 
 `user_id` is the Keycloak UUID stored as `VARCHAR`. No cross-service foreign keys; the service stays independently deployable.
@@ -116,6 +119,8 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 | PUT    | `/api/v1/library/tag-preferences`               | Replace-all `{ "tags": [...] }`.                  |
 | GET    | `/api/v1/library/release-year-preferences`      | Read declared decade buckets.                     |
 | PUT    | `/api/v1/library/release-year-preferences`      | Replace-all `{ "decades": [...] }`.               |
+| GET    | `/api/v1/library/onboarding`                    | Whether this account has been through onboarding. |
+| POST   | `/api/v1/library/onboarding`                    | Mark it done. Idempotent, keeps the first timestamp. |
 
 Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clearAutomatically)` so the transaction does not hit the `(user_id, name)` UNIQUE constraint on the subsequent insert.
 

@@ -31,7 +31,8 @@ public class AccountController {
                 "gamesRemoved", result.gamesRemoved(),
                 "platformsRemoved", result.platformsRemoved(),
                 "genrePreferencesRemoved", result.genrePreferencesRemoved(),
-                "tagPreferencesRemoved", result.tagPreferencesRemoved()
+                "tagPreferencesRemoved", result.tagPreferencesRemoved(),
+                "onboardingRemoved", result.onboardingRemoved()
         ));
     }
 

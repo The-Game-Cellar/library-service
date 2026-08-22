@@ -7,6 +7,7 @@ import com.thegamecellar.libraryservice.model.dto.UserPlatformDTO;
 import com.thegamecellar.libraryservice.model.dto.UserTagPreferenceDTO;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
 import com.thegamecellar.libraryservice.repository.UserGenrePreferenceRepository;
+import com.thegamecellar.libraryservice.repository.UserOnboardingRepository;
 import com.thegamecellar.libraryservice.repository.UserPlatformRepository;
 import com.thegamecellar.libraryservice.repository.UserTagPreferenceRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class AccountService {
     private final UserPlatformRepository userPlatformRepository;
     private final UserGenrePreferenceRepository userGenrePreferenceRepository;
     private final UserTagPreferenceRepository userTagPreferenceRepository;
+    private final UserOnboardingRepository userOnboardingRepository;
     private final LibraryService libraryService;
     private final PlatformService platformService;
     private final GenrePreferenceService genrePreferenceService;
@@ -37,9 +39,10 @@ public class AccountService {
         long platforms = userPlatformRepository.deleteByUserId(userId);
         long genrePreferences = userGenrePreferenceRepository.deleteByUserId(userId);
         long tagPreferences = userTagPreferenceRepository.deleteByUserId(userId);
-        log.info("Account purge complete for userId={}: removed {} games + {} platforms + {} genre prefs + {} tag prefs",
-                userId, games, platforms, genrePreferences, tagPreferences);
-        return new PurgeResult(games, platforms, genrePreferences, tagPreferences);
+        long onboarding = userOnboardingRepository.deleteByUserId(userId);
+        log.info("Account purge complete for userId={}: removed {} games + {} platforms + {} genre prefs + {} tag prefs + {} onboarding rows",
+                userId, games, platforms, genrePreferences, tagPreferences, onboarding);
+        return new PurgeResult(games, platforms, genrePreferences, tagPreferences, onboarding);
     }
 
     public AccountExportDTO exportUser(String userId) {
@@ -50,5 +53,5 @@ public class AccountService {
         return AccountExportDTO.of(userId, games, platforms, genrePreferences, tagPreferences);
     }
 
-    public record PurgeResult(long gamesRemoved, long platformsRemoved, long genrePreferencesRemoved, long tagPreferencesRemoved) {}
+    public record PurgeResult(long gamesRemoved, long platformsRemoved, long genrePreferencesRemoved, long tagPreferencesRemoved, long onboardingRemoved) {}
 }
