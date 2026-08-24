@@ -124,6 +124,19 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 
 Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clearAutomatically)` so the transaction does not hit the `(user_id, name)` UNIQUE constraint on the subsequent insert.
 
+### Account
+
+| Method | Path                                   | Description                                                                 |
+|--------|----------------------------------------|-----------------------------------------------------------------------------|
+| GET    | `/api/v1/library/account/export`       | Everything this service holds for the caller, as one JSON document.          |
+| DELETE | `/api/v1/library/account`              | Purges the caller's rows and reports what was removed per table. The identity itself is deleted by the gateway, which calls this first. |
+
+### Admin
+
+| Method | Path                                        | Description                                                            |
+|--------|---------------------------------------------|------------------------------------------------------------------------|
+| POST   | `/api/v1/library/admin/refresh-game-info`   | Re-reads cached game metadata from Game Service for the caller's rows and reports what changed. |
+
 ### Internal service-to-service (no user JWT)
 
 | Method | Path                                                            | Description                                              |
