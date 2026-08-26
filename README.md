@@ -38,6 +38,7 @@ Library Service is the source of truth for user-owned data. Recommendation Servi
 - PostgreSQL 17 with Flyway-managed migrations
 - Spring Security OAuth 2 Resource Server for JWT validation
 - `@Scheduled` cron for the DUSTY sweep (03:00 daily)
+- Sentry for error tracking (`sentry-spring-boot-4` + `sentry-logback`)
 
 ## Game Statuses
 
@@ -168,6 +169,9 @@ Used by the recommendation-service per-user worker, which runs scheduled without
 | `REDIS_HOST`              | `localhost`                                      | Redis host (powers the library-write pub/sub channel). |
 | `REDIS_PORT`              | `6379`                                           | Redis port. |
 | `REDIS_PASSWORD`          | (required when Redis auth on)                    | Redis password. Library-write publisher silently no-ops if Redis is unreachable; rec-service hourly TTL scanner catches the user up later. |
+| `SENTRY_DSN`              | (empty)                                          | Sentry ingest endpoint. Empty makes the SDK a no-op, so local runs and tests send nothing. Set in production only. |
+| `SENTRY_ENVIRONMENT`      | `local`                                          | Environment tag on every Sentry event |
+| `SENTRY_RELEASE`          | (empty)                                          | Commit sha, baked into the image at build time so Sentry can group regressions by deploy |
 
 ## Run Locally
 
