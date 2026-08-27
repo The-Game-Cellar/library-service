@@ -32,6 +32,7 @@ public class AccountController {
                 "platformsRemoved", result.platformsRemoved(),
                 "genrePreferencesRemoved", result.genrePreferencesRemoved(),
                 "tagPreferencesRemoved", result.tagPreferencesRemoved(),
+                "releaseYearPreferencesRemoved", result.releaseYearPreferencesRemoved(),
                 "onboardingRemoved", result.onboardingRemoved()
         ));
     }
