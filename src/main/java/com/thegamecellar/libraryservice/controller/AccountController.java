@@ -25,7 +25,7 @@ public class AccountController {
     @DeleteMapping
     public ResponseEntity<Map<String, Object>> deleteAccount(Authentication authentication) {
         String userId = JwtUtils.getUserId(authentication);
-        AccountService.PurgeResult result = accountService.purgeUser(userId);
+        AccountService.PurgeResult result = accountService.requestDeletion(userId);
         return ResponseEntity.ok(Map.of(
                 "message", "Account data purged",
                 "gamesRemoved", result.gamesRemoved(),

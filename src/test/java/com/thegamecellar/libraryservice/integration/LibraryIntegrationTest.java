@@ -3,6 +3,7 @@ package com.thegamecellar.libraryservice.integration;
 import com.thegamecellar.libraryservice.exception.GameAlreadyInCollectionException;
 import com.thegamecellar.libraryservice.exception.GameNotFoundException;
 import com.thegamecellar.libraryservice.model.dto.AddGameRequest;
+import com.thegamecellar.libraryservice.model.dto.AccountDeletionDTO;
 import com.thegamecellar.libraryservice.model.dto.AccountExportDTO;
 import com.thegamecellar.libraryservice.model.dto.UpdateGameRequest;
 import com.thegamecellar.libraryservice.model.dto.UserGameDTO;
@@ -277,5 +278,34 @@ class LibraryIntegrationTest {
         // The join tables hang off user_games and must go with it.
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM user_game_genres", Integer.class)).isEqualTo(1);
         assertThat(libraryService.getGames(BOB, null, null, null, null, TOKEN)).hasSize(1);
+    }
+
+    // The ledger row is the only thing that survives a deletion request, and it must not
+    // be visible to the retry job until the grace window has passed.
+    @Test
+    void aDeletionRequestLeavesALedgerRowThatOutlivesThePurgeAndSurfacesAfterTheGrace() {
+        add(ALICE, 1001, GameStatus.BACKLOG);
+        try {
+            accountService.requestDeletion(ALICE);
+
+            assertThat(libraryService.getGames(ALICE, null, null, null, null, TOKEN)).isEmpty();
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM account_deletions WHERE user_id = ? AND identity_deleted_at IS NULL",
+                    Integer.class, ALICE)).isEqualTo(1);
+            assertThat(accountService.pendingDeletions()).isEmpty();
+
+            jdbc.update("UPDATE account_deletions SET requested_at = ? WHERE user_id = ?",
+                    Timestamp.valueOf(LocalDateTime.now().minusMinutes(5)), ALICE);
+            assertThat(accountService.pendingDeletions())
+                    .extracting(AccountDeletionDTO::userId).containsExactly(ALICE);
+
+            accountService.completeDeletion(ALICE);
+            assertThat(accountService.pendingDeletions()).isEmpty();
+            assertThat(jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM account_deletions WHERE user_id = ? AND identity_deleted_at IS NOT NULL",
+                    Integer.class, ALICE)).isEqualTo(1);
+        } finally {
+            jdbc.update("DELETE FROM account_deletions WHERE user_id = ?", ALICE);
+        }
     }
 }
