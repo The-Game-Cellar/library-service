@@ -77,7 +77,12 @@ user_genre_preferences   user_tag_preferences   user_release_year_preferences
 
 user_onboarding
   user_id (PK), completed_at
+
+account_deletions
+  user_id (PK), requested_at, identity_deleted_at (NULL until the gateway confirms the Keycloak user is gone)
 ```
+
+`account_deletions` is the deletion ledger. A row is written in the same transaction as the purge and deliberately survives it: it records that erasure was requested, and the gateway's retry job finishes any deletion whose identity delete never got confirmed.
 
 `user_id` is the Keycloak UUID stored as `VARCHAR`. No cross-service foreign keys; the service stays independently deployable.
 
@@ -130,7 +135,7 @@ Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clea
 | Method | Path                                   | Description                                                                 |
 |--------|----------------------------------------|-----------------------------------------------------------------------------|
 | GET    | `/api/v1/library/account/export`       | Everything this service holds for the caller, as one JSON document.          |
-| DELETE | `/api/v1/library/account`              | Purges the caller's rows and reports what was removed per table. The identity itself is deleted by the gateway, which calls this first. |
+| DELETE | `/api/v1/library/account`              | Writes the `account_deletions` ledger row and purges the caller's rows in one transaction, reporting what was removed per table. The identity itself is deleted by the gateway, which calls this after disabling the user. |
 
 ### Admin
 
@@ -147,8 +152,10 @@ Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clea
 | GET    | `/internal/library/users/{userId}/preferences/genres`           | Declared genre preferences.                              |
 | GET    | `/internal/library/users/{userId}/preferences/tags`             | Declared tag preferences.                                |
 | GET    | `/internal/library/users/{userId}/preferences/release-years`    | Declared release-year-bucket preferences.                |
+| GET    | `/internal/library/account-deletions/pending`                   | Ledger rows older than a minute whose identity delete is unconfirmed. |
+| POST   | `/internal/library/account-deletions/{userId}/complete`         | Stamps `identity_deleted_at`. Idempotent, 204.           |
 
-Used by the recommendation-service per-user worker, which runs scheduled without a user JWT. Protected by `InternalAuthFilter`: requires header `X-Internal-Token: {INTERNAL_SERVICE_TOKEN}` (constant-time compare, fail-closed when the env var is unset). The api-gateway has no route for `/internal/**`, so the paths are only reachable inside the docker network.
+The `users/*` paths are used by the recommendation-service per-user worker, the `account-deletions/*` paths by the api-gateway's deletion retry job; both run scheduled without a user JWT. Protected by `InternalAuthFilter`: requires header `X-Internal-Token: {INTERNAL_SERVICE_TOKEN}` (constant-time compare, fail-closed when the env var is unset). The api-gateway has no route for `/internal/**`, so the paths are only reachable inside the docker network.
 
 ## Library-write event publishing
 
