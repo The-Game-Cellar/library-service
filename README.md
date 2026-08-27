@@ -199,7 +199,7 @@ docker compose up library-service
 ./mvnw test
 ```
 
-Covers controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation.
+Unit tests cover controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation with mocked repositories. `LibraryIntegrationTest` runs the service layer against a real Postgres 17 started by Testcontainers with the real Flyway migrations: add, filter, update and remove with owner scoping and the duplicate constraint, the DUSTY job with `updated_at` backdated in SQL, replace-all preferences with overlapping values in one transaction, and a full account purge checked against the export. Only the game-service client and the Redis publisher are mocked. It needs a Docker daemon and skips itself where none is reachable.
 
 ## Security
 
