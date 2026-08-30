@@ -44,7 +44,7 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
     @Query("""
             SELECT g FROM UserGame g
             WHERE g.status IN ('BACKLOG', 'PLAYING')
-            AND g.updatedAt < :threshold
+            AND g.statusChangedAt < :threshold
             """)
     List<UserGame> findAllEligibleForDusty(@Param("threshold") LocalDateTime threshold);
 

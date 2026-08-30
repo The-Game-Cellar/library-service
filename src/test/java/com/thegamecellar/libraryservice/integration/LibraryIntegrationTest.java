@@ -182,6 +182,14 @@ class LibraryIntegrationTest {
     void updatingStatusToPlayingStampsLastPlayedAndDustyCannotBeSetByHand() {
         UserGameDTO saved = add(ALICE, 1001, GameStatus.BACKLOG);
         assertThat(saved.getLastPlayed()).isNull();
+        // Re-read: the add() result carries the in-memory nanosecond stamp, the column holds microseconds
+        LocalDateTime stamped = libraryService.getGame(ALICE, saved.getId()).getStatusChangedAt();
+        assertThat(stamped).isNotNull();
+
+        UpdateGameRequest notesOnly = new UpdateGameRequest();
+        notesOnly.setNotes("still on the shelf");
+        assertThat(libraryService.updateGame(ALICE, saved.getId(), notesOnly).getStatusChangedAt())
+                .isEqualTo(stamped);
 
         UpdateGameRequest toPlaying = new UpdateGameRequest();
         toPlaying.setStatus(GameStatus.PLAYING);
@@ -191,6 +199,8 @@ class LibraryIntegrationTest {
         assertThat(updated.getStatus()).isEqualTo(GameStatus.PLAYING);
         assertThat(updated.getRating()).isEqualTo(9);
         assertThat(updated.getLastPlayed()).isNotNull();
+        assertThat(updated.getStatusChangedAt()).isAfter(stamped);
+        assertThat(updated.getPreviousStatus()).isEqualTo(GameStatus.BACKLOG);
 
         UpdateGameRequest toDusty = new UpdateGameRequest();
         toDusty.setStatus(GameStatus.DUSTY);
@@ -202,9 +212,9 @@ class LibraryIntegrationTest {
                 .isInstanceOf(GameNotFoundException.class);
     }
 
-    // The nightly job moves BACKLOG and PLAYING rows nobody has touched for 90 days to DUSTY.
-    // Time is faked by backdating updated_at in SQL, because @PreUpdate would stamp "now" on any
-    // save through JPA.
+    // The nightly job moves BACKLOG and PLAYING rows whose status has stood for 90 days to DUSTY.
+    // Time is faked by backdating status_changed_at in SQL. A rating edit in between must not
+    // rescue the row: only a status change moves the clock.
     @Test
     void theDustyJobMovesOnlyUntouchedBacklogAndPlayingRows() {
         UserGameDTO forgottenBacklog = add(ALICE, 1001, GameStatus.BACKLOG);
@@ -214,13 +224,18 @@ class LibraryIntegrationTest {
 
         Timestamp hundredDaysAgo = Timestamp.valueOf(LocalDateTime.now().minusDays(100));
         for (UserGameDTO stale : List.of(forgottenBacklog, forgottenPlaying, oldButCompleted)) {
-            jdbc.update("UPDATE user_games SET updated_at = ? WHERE id = ?", hundredDaysAgo, stale.getId());
+            jdbc.update("UPDATE user_games SET status_changed_at = ? WHERE id = ?", hundredDaysAgo, stale.getId());
         }
+        UpdateGameRequest ratingOnly = new UpdateGameRequest();
+        ratingOnly.setRating(6);
+        libraryService.updateGame(ALICE, forgottenBacklog.getId(), ratingOnly);
 
         dustyScheduler.transitionDustyGames();
 
         assertThat(libraryService.getDustyGames(ALICE))
                 .extracting(UserGameDTO::getIgdbGameId).containsExactlyInAnyOrder(1001, 1002);
+        assertThat(libraryService.getGame(ALICE, forgottenBacklog.getId()).getPreviousStatus()).isEqualTo(GameStatus.BACKLOG);
+        assertThat(libraryService.getGame(ALICE, forgottenPlaying.getId()).getPreviousStatus()).isEqualTo(GameStatus.PLAYING);
         assertThat(libraryService.getGame(ALICE, oldButCompleted.getId()).getStatus()).isEqualTo(GameStatus.COMPLETED);
         assertThat(libraryService.getGame(BOB, recentBacklog.getId()).getStatus()).isEqualTo(GameStatus.BACKLOG);
         assertThat(libraryService.getDustyGames(BOB)).isEmpty();

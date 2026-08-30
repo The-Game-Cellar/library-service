@@ -29,7 +29,12 @@ public class DustyTransitionScheduler {
             if (eligible.isEmpty()) {
                 return;
             }
-            eligible.forEach(g -> g.setStatus(GameStatus.DUSTY));
+            LocalDateTime now = LocalDateTime.now();
+            eligible.forEach(g -> {
+                g.setPreviousStatus(g.getStatus());
+                g.setStatus(GameStatus.DUSTY);
+                g.setStatusChangedAt(now);
+            });
             userGameRepository.saveAll(eligible);
             log.info("Transitioned {} games to DUSTY status", eligible.size());
         } catch (Exception e) {

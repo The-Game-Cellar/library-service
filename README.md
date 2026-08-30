@@ -64,6 +64,8 @@ user_games
   game_name, background_image, released (cached from Game Service),
   status, rating (1-10), platform,
   date_added, last_played, playtime, notes,
+  status_changed_at (moves only on a status change; the DUSTY job reads it),
+  previous_status (the status before the current one; NULL until the first transition),
   metadata_synced_at, created_at, updated_at
 
 user_game_genres   user_game_themes   user_game_tags
@@ -206,7 +208,7 @@ docker compose up library-service
 ./mvnw test
 ```
 
-Unit tests cover controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation with mocked repositories. `LibraryIntegrationTest` runs the service layer against a real Postgres 17 started by Testcontainers with the real Flyway migrations: add, filter, update and remove with owner scoping and the duplicate constraint, the DUSTY job with `updated_at` backdated in SQL, replace-all preferences with overlapping values in one transaction, and a full account purge checked against the export. Only the game-service client and the Redis publisher are mocked. It needs a Docker daemon and skips itself where none is reachable.
+Unit tests cover controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation with mocked repositories. `LibraryIntegrationTest` runs the service layer against a real Postgres 17 started by Testcontainers with the real Flyway migrations: add, filter, update and remove with owner scoping and the duplicate constraint, the DUSTY job with `status_changed_at` backdated in SQL and a rating edit in between, replace-all preferences with overlapping values in one transaction, and a full account purge checked against the export. Only the game-service client and the Redis publisher are mocked. It needs a Docker daemon and skips itself where none is reachable.
 
 ## Security
 

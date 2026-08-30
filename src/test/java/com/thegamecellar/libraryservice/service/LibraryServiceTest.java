@@ -333,6 +333,34 @@ class LibraryServiceTest {
         assertThat(result.getStatus()).isEqualTo(GameStatus.PLAYING);
         assertThat(result.getRating()).isEqualTo(9);
         assertThat(result.getLastPlayed()).isNotNull();
+        assertThat(result.getStatusChangedAt()).isNotNull();
+    }
+
+    @Test
+    void shouldMoveStatusChangedAtOnlyOnARealStatusChange() {
+        LocalDateTime longAgo = LocalDateTime.now().minusDays(40);
+        UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
+        game.setStatusChangedAt(longAgo);
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
+        when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateGameRequest ratingOnly = new UpdateGameRequest();
+        ratingOnly.setRating(7);
+        UserGameDTO afterRating = libraryService.updateGame(USER_ID, 1L, ratingOnly);
+        assertThat(afterRating.getStatusChangedAt()).isEqualTo(longAgo);
+        assertThat(afterRating.getPreviousStatus()).isNull();
+
+        UpdateGameRequest sameStatus = new UpdateGameRequest();
+        sameStatus.setStatus(GameStatus.BACKLOG);
+        UserGameDTO afterSame = libraryService.updateGame(USER_ID, 1L, sameStatus);
+        assertThat(afterSame.getStatusChangedAt()).isEqualTo(longAgo);
+        assertThat(afterSame.getPreviousStatus()).isNull();
+
+        UpdateGameRequest toPlaying = new UpdateGameRequest();
+        toPlaying.setStatus(GameStatus.PLAYING);
+        UserGameDTO afterChange = libraryService.updateGame(USER_ID, 1L, toPlaying);
+        assertThat(afterChange.getStatusChangedAt()).isAfter(longAgo);
+        assertThat(afterChange.getPreviousStatus()).isEqualTo(GameStatus.BACKLOG);
     }
 
     @Test

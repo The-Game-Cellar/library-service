@@ -134,6 +134,11 @@ public class LibraryService {
             if (request.getStatus() == GameStatus.DUSTY) {
                 throw new IllegalArgumentException("DUSTY status is auto-assigned and cannot be set manually");
             }
+            // A PUT that repeats the current status is not a transition; the clock only moves on a real change
+            if (request.getStatus() != game.getStatus()) {
+                game.setPreviousStatus(game.getStatus());
+                game.setStatusChangedAt(LocalDateTime.now());
+            }
             game.setStatus(request.getStatus());
             if (request.getStatus() == GameStatus.PLAYING) {
                 game.setLastPlayed(LocalDateTime.now());
@@ -225,6 +230,8 @@ public class LibraryService {
                 .platform(game.getPlatform())
                 .dateAdded(game.getDateAdded())
                 .lastPlayed(game.getLastPlayed())
+                .statusChangedAt(game.getStatusChangedAt())
+                .previousStatus(game.getPreviousStatus())
                 .playtime(game.getPlaytime())
                 .notes(game.getNotes())
                 .build();

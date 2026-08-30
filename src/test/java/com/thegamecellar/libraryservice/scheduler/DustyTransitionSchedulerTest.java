@@ -53,6 +53,9 @@ class DustyTransitionSchedulerTest {
         List<UserGame> saved = captor.getValue();
         assertThat(saved).hasSize(2);
         assertThat(saved).allMatch(g -> g.getStatus() == GameStatus.DUSTY);
+        assertThat(saved).allMatch(g -> g.getStatusChangedAt() != null);
+        assertThat(backlogGame.getPreviousStatus()).isEqualTo(GameStatus.BACKLOG);
+        assertThat(playingGame.getPreviousStatus()).isEqualTo(GameStatus.PLAYING);
     }
 
     @Test

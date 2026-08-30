@@ -83,6 +83,15 @@ public class UserGame {
     @Column(name = "metadata_synced_at")
     private LocalDateTime metadataSyncedAt;
 
+    // Moves only when status changes; updated_at moves on any edit, so it cannot carry this
+    @Column(name = "status_changed_at", nullable = false)
+    private LocalDateTime statusChangedAt;
+
+    // Null until the first transition after the column arrived; nothing to backfill it from
+    @Enumerated(EnumType.STRING)
+    @Column(name = "previous_status")
+    private GameStatus previousStatus;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -95,6 +104,7 @@ public class UserGame {
         this.dateAdded = now;
         this.createdAt = now;
         this.updatedAt = now;
+        this.statusChangedAt = now;
     }
 
     @PreUpdate

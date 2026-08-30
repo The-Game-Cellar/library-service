@@ -27,6 +27,8 @@ public class UserGameDTO {
     private String platform;
     private LocalDateTime dateAdded;
     private LocalDateTime lastPlayed;
+    private LocalDateTime statusChangedAt;
+    private GameStatus previousStatus;
     private Integer playtime;
     private String notes;
 }
