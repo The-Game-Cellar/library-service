@@ -52,6 +52,12 @@ security:
   internal:
     token: ${INTERNAL_SERVICE_TOKEN:}
 
+cellar:
+  ratings:
+    # Publishes member-rating aggregates to game-service. 02:00 keeps it clear of the
+    # Dusty pass at 03:00 and of game-service's own catalog and background-art workers.
+    cron: ${CELLAR_RATINGS_CRON:0 0 2 * * *}
+
 logging:
   pattern:
     console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%X{requestId:-........}]){magenta} %clr([%-15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"

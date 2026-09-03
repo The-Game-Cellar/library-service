@@ -52,4 +52,15 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
 
     @Query("SELECT g.igdbGameId FROM UserGame g WHERE g.userId = :userId")
     List<Integer> findIgdbGameIdsByUserId(@Param("userId") String userId);
+
+    // Feeds the nightly Cellar score pass. Rows without a rating are excluded rather than
+    // counted as zero, so the average is over people who actually rated the game.
+    @Query("""
+            SELECT g.igdbGameId, AVG(g.rating), COUNT(g.rating)
+            FROM UserGame g
+            WHERE g.rating IS NOT NULL
+            GROUP BY g.igdbGameId
+            ORDER BY g.igdbGameId
+            """)
+    List<Object[]> aggregateRatingsByGame();
 }
