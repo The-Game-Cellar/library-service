@@ -163,6 +163,14 @@ The `users/*` paths are used by the recommendation-service per-user worker, the 
 
 `LibraryWritePublisher` emits the changed `userId` (JWT-extracted) to the Redis `library-write` channel after every write that affects recommendations: `addGame`, `updateGame`, `removeGame`, and the three preference services (`GenrePreferenceService`, `TagPreferenceService`, `ReleaseYearPreferenceService`). Best-effort: a Redis outage is logged at WARN and the write still commits; recommendation-service's hourly stale-pool scan catches the user up later. Subscriber lives in recommendation-service (`LibraryWriteSubscriber`).
 
+## Cellar score pass
+
+`CellarRatingScheduler` runs nightly at `CELLAR_RATINGS_CRON` (02:00 by default) and publishes what this site's members rated each game to game-service, which blends it against the IGDB score. It aggregates `AVG(rating)` and `COUNT(rating)` per `igdb_game_id` over every rated row, then posts the result through `InternalGameClient` to `POST /internal/games/ratings` in batches of 500 under one generated `runId`, and closes the pass with `POST /internal/games/ratings/prune`.
+
+Only aggregates cross the boundary: no user id ever leaves this service. `InternalGameClient` is separate from `GameServiceClient` because the latter forwards a user's JWT to the public API and a scheduled job has no user, so it authenticates with `INTERNAL_SERVICE_TOKEN` instead.
+
+The prune is what lets a game lose its score when its last rating is deleted, since such a game stops appearing in the aggregate rather than arriving with a zero. A run that loses a batch logs at ERROR and **skips** the prune, because pruning on a partial run would clear exactly the games the failed batch was carrying; the previous night's values stand until the next successful pass.
+
 ## Configuration
 
 | Variable                  | Default                                          | Purpose                          |
@@ -173,7 +181,8 @@ The `users/*` paths are used by the recommendation-service per-user worker, the 
 | `LIBRARY_DB_PASSWORD`     | _none_                                           | DB password                      |
 | `DDL_AUTO`                | `validate`                                       | Hibernate DDL mode               |
 | `KEYCLOAK_ISSUER_URI`     | `http://localhost:8080/realms/game-cellar`       | JWT issuer                       |
-| `GAME_SERVICE_URL`        | `http://localhost:8081`                          | Used for enrichment on `addGame` |
+| `GAME_SERVICE_URL`        | `http://localhost:8081`                          | Used for enrichment on `addGame` and by the nightly Cellar score pass |
+| `CELLAR_RATINGS_CRON`     | `0 0 2 * * *`                                    | When the Cellar score pass runs. 02:00 keeps it clear of the DUSTY pass at 03:00 and of game-service's own workers |
 | `INTERNAL_SERVICE_TOKEN`  | (required for /internal/** auth)                 | Shared secret accepted by `InternalAuthFilter` on `/internal/**`. Fail-closed when unset. |
 | `REDIS_HOST`              | `localhost`                                      | Redis host (powers the library-write pub/sub channel). |
 | `REDIS_PORT`              | `6379`                                           | Redis port. |
