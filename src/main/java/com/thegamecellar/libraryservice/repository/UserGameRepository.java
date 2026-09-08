@@ -26,7 +26,6 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
             SELECT DISTINCT g FROM UserGame g
             WHERE g.userId = :userId
             AND (:status IS NULL OR g.status = :status)
-            AND (:platform IS NULL OR g.platform = :platform)
             AND (:search IS NULL OR LOWER(g.gameName) LIKE :search)
             AND (:genre IS NULL OR EXISTS (
                 SELECT 1 FROM UserGame g2 JOIN g2.genres ge
@@ -36,7 +35,6 @@ public interface UserGameRepository extends JpaRepository<UserGame, Long> {
     List<UserGame> findByUserIdWithFilters(
             @Param("userId") String userId,
             @Param("status") GameStatus status,
-            @Param("platform") String platform,
             @Param("search") String search,
             @Param("genre") String genre
     );

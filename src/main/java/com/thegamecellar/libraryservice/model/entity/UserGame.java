@@ -38,8 +38,14 @@ public class UserGame {
     @Column(name = "rating")
     private Integer rating;
 
+    // Ordered: the first platform is the entry's main one, the value the old single column held
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_game_platforms", joinColumns = @JoinColumn(name = "user_game_id"))
+    @OrderColumn(name = "position")
     @Column(name = "platform", nullable = false)
-    private String platform;
+    @BatchSize(size = 200)
+    @Builder.Default
+    private List<String> platforms = new ArrayList<>();
 
     @Column(name = "date_added", updatable = false)
     private LocalDateTime dateAdded;

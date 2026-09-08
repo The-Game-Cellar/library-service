@@ -24,7 +24,9 @@ public class UserGameDTO {
     private String released;
     private GameStatus status;
     private Integer rating;
+    // `platform` is the first of `platforms`, kept for the v1 client
     private String platform;
+    private List<String> platforms;
     private LocalDateTime dateAdded;
     private LocalDateTime lastPlayed;
     private LocalDateTime statusChangedAt;
