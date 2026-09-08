@@ -27,7 +27,7 @@ public class LibraryController {
     public ResponseEntity<List<UserGameDTO>> getGames(
             Authentication authentication,
             @RequestParam(required = false) GameStatus status,
-            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) List<String> platform,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String genre) {
         String userId = JwtUtils.getUserId(authentication);

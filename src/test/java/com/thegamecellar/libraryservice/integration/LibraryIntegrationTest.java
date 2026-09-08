@@ -179,6 +179,49 @@ class LibraryIntegrationTest {
     }
 
     @Test
+    void anEntryHoldsItsPlatformsInTheOrderGivenAndTheOldColumnIsGone() {
+        AddGameRequest request = new AddGameRequest();
+        request.setIgdbGameId(1001);
+        request.setGameName("placeholder");
+        request.setStatus(GameStatus.BACKLOG);
+        request.setPlatforms(List.of("PlayStation 5", "PC", "PC "));
+        UserGameDTO saved = libraryService.addGame(ALICE, request, TOKEN);
+        add(ALICE, 1002, GameStatus.PLAYING);
+
+        assertThat(saved.getPlatforms()).containsExactly("PlayStation 5", "PC");
+        assertThat(saved.getPlatform()).isEqualTo("PlayStation 5");
+        assertThat(libraryService.getGame(ALICE, saved.getId()).getPlatforms()).containsExactly("PlayStation 5", "PC");
+
+        assertThat(libraryService.getGames(ALICE, null, List.of("PC"), null, null, TOKEN))
+                .extracting(UserGameDTO::getIgdbGameId).containsExactlyInAnyOrder(1001, 1002);
+        assertThat(libraryService.getGames(ALICE, null, List.of("PlayStation 5"), null, null, TOKEN))
+                .extracting(UserGameDTO::getIgdbGameId).containsExactly(1001);
+        assertThat(libraryService.getGames(ALICE, null, List.of("Nintendo Switch"), null, null, TOKEN)).isEmpty();
+        assertThat(libraryService.getGamePlatforms(ALICE)).containsExactly("PC", "PlayStation 5");
+        assertThat(libraryService.getStats(ALICE).getByPlatform())
+                .containsEntry("PC", 2L).containsEntry("PlayStation 5", 1L);
+
+        UpdateGameRequest reorder = new UpdateGameRequest();
+        reorder.setPlatforms(List.of("PC", "PlayStation 5", "Nintendo Switch"));
+        assertThat(libraryService.updateGame(ALICE, saved.getId(), reorder).getPlatform()).isEqualTo("PC");
+        assertThat(libraryService.getGame(ALICE, saved.getId()).getPlatforms())
+                .containsExactly("PC", "PlayStation 5", "Nintendo Switch");
+
+        UpdateGameRequest oldClient = new UpdateGameRequest();
+        oldClient.setPlatform("Xbox Series X|S");
+        libraryService.updateGame(ALICE, saved.getId(), oldClient);
+        assertThat(libraryService.getGame(ALICE, saved.getId()).getPlatforms()).containsExactly("Xbox Series X|S");
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM user_game_platforms WHERE user_game_id = ?", Integer.class, saved.getId()))
+                .isEqualTo(1);
+
+        // The migration copied the old column into the table and dropped it
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'user_games' AND column_name = 'platform'",
+                Integer.class)).isZero();
+    }
+
+    @Test
     void updatingStatusToPlayingStampsLastPlayedAndDustyCannotBeSetByHand() {
         UserGameDTO saved = add(ALICE, 1001, GameStatus.BACKLOG);
         assertThat(saved.getLastPlayed()).isNull();

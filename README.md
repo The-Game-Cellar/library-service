@@ -62,11 +62,15 @@ user_games
   id, user_id (Keycloak UUID, VARCHAR, no FK),
   igdb_game_id (IGDB reference, no FK),
   game_name, background_image, released (cached from Game Service),
-  status, rating (1-10), platform,
+  status, rating (1-10),
   date_added, last_played, playtime, notes,
   status_changed_at (moves only on a status change; the DUSTY job reads it),
   previous_status (the status before the current one; NULL until the first transition),
   metadata_synced_at, created_at, updated_at
+
+user_game_platforms
+  user_game_id FK (ON DELETE CASCADE), platform, position; PK (user_game_id, position), index on platform.
+  The platforms the entry is owned on, in the order the client gave; position 0 is the main one.
 
 user_game_genres   user_game_themes   user_game_tags
   user_game_id FK (ON DELETE CASCADE), value VARCHAR(100), composite PK + reverse index
@@ -88,7 +92,7 @@ account_deletions
 
 `user_id` is the Keycloak UUID stored as `VARCHAR`. No cross-service foreign keys; the service stays independently deployable.
 
-`game_name`, `background_image`, and `released` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library. Multi-valued attributes (genres, themes, tags) live in dedicated `@ElementCollection` join tables with composite PK and a reverse index on the value column. Genre filtering runs as a JPQL `EXISTS` subquery with exact-match `LOWER(value) = :key`, no `LIKE` wildcards. `metadata_synced_at` is the single marker for the lazy-heal path; NULL means the row was added before Game Service responded.
+`game_name`, `background_image`, and `released` are denormalized onto `user_games` to avoid N+1 calls to Game Service when rendering the library. Multi-valued attributes (platforms, genres, themes, tags) live in dedicated `@ElementCollection` join tables with composite PK and a reverse index on the value column; `user_game_platforms` is the ordered one, so an entry owned on several platforms keeps the client's order and the first is its main platform. Genre filtering runs as a JPQL `EXISTS` subquery with exact-match `LOWER(value) = :key`, no `LIKE` wildcards. `metadata_synced_at` is the single marker for the lazy-heal path; NULL means the row was added before Game Service responded.
 
 ## API Endpoints
 
@@ -98,9 +102,9 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 
 | Method | Path                              | Description                                                              |
 |--------|-----------------------------------|--------------------------------------------------------------------------|
-| GET    | `/api/v1/library/games`           | Filtered: `?status=`, `?platform=`, `?search=`, `?genre=`.               |
-| POST   | `/api/v1/library/games`           | Add game. 409 on duplicate. Body validated (`@NotNull`, `@NotBlank`).    |
-| PUT    | `/api/v1/library/games/{id}`      | Update status / rating / platform / etc. `DUSTY` rejected.               |
+| GET    | `/api/v1/library/games`           | Filtered: `?status=`, `?platform=` (repeatable, any of them matches), `?search=`, `?genre=`. |
+| POST   | `/api/v1/library/games`           | Add game. 409 on duplicate. Body validated (`@NotNull`, `@NotBlank`); `platforms` (list, first is the main one) or `platform` (single), at least one. |
+| PUT    | `/api/v1/library/games/{id}`      | Update status / rating / platforms / etc. `platforms` replaces the whole list, `platform` replaces it with that one; an empty list is a 400. `DUSTY` rejected. |
 | DELETE | `/api/v1/library/games/{id}`      | Remove.                                                                  |
 
 ### Filtered views
@@ -113,7 +117,7 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 |--------|-------------------------------------|------------------------------------------------------------------------------|
 | GET    | `/api/v1/library/genres`            | Sorted distinct genres in the user's library.                                |
 | GET    | `/api/v1/library/games/platforms`   | Sorted distinct platforms present in the user's library (Library filter facet). |
-| GET    | `/api/v1/library/stats`             | Totals by status, average rating, distribution by genre + platform.          |
+| GET    | `/api/v1/library/stats`             | Totals by status, average rating, distribution by genre + platform (a game counts under each of its platforms). |
 | GET    | `/api/v1/library/platforms`         | User's platforms.                                                            |
 | POST   | `/api/v1/library/platforms`         | Add platform.                                                                |
 

@@ -6,6 +6,7 @@ import com.thegamecellar.libraryservice.model.dto.*;
 import com.thegamecellar.libraryservice.model.entity.UserGame;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
+import com.thegamecellar.libraryservice.util.Platforms;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +26,18 @@ public class LibraryService {
     private final LibraryWritePublisher writePublisher;
 
     @Transactional
-    public List<UserGameDTO> getGames(String userId, GameStatus status, String platform, String search, String genre, String bearerToken) {
+    public List<UserGameDTO> getGames(String userId, GameStatus status, List<String> platforms, String search, String genre, String bearerToken) {
         String searchPattern = (search != null && !search.isBlank())
                 ? "%" + search.toLowerCase() + "%"
                 : null;
         String genreKey = (genre != null && !genre.isBlank())
                 ? genre.toLowerCase()
                 : null;
-        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, platform, searchPattern, genreKey);
+        // Any of the given platforms matches an entry that has it; the lists are loaded with the rows
+        List<String> wanted = Platforms.normalise(platforms, null);
+        List<UserGame> games = userGameRepository.findByUserIdWithFilters(userId, status, searchPattern, genreKey);
         return games.stream()
+                .filter(g -> wanted.isEmpty() || g.getPlatforms().stream().anyMatch(wanted::contains))
                 .map(g -> healStaleMetadata(g, bearerToken))
                 .map(this::toDTO)
                 .toList();
@@ -70,9 +74,7 @@ public class LibraryService {
 
     public List<String> getGamePlatforms(String userId) {
         return userGameRepository.findByUserId(userId).stream()
-                .map(UserGame::getPlatform)
-                .filter(p -> p != null && !p.isBlank())
-                .map(String::trim)
+                .flatMap(g -> g.getPlatforms().stream())
                 .distinct()
                 .sorted()
                 .toList();
@@ -99,6 +101,10 @@ public class LibraryService {
         if (userGameRepository.existsByUserIdAndIgdbGameId(userId, request.getIgdbGameId())) {
             throw new GameAlreadyInCollectionException(request.getIgdbGameId());
         }
+        List<String> platforms = Platforms.normalise(request.getPlatforms(), request.getPlatform());
+        if (platforms.isEmpty()) {
+            throw new IllegalArgumentException("At least one platform is required");
+        }
         GameServiceClient.GameInfo gameInfo = gameServiceClient.getGameInfo(request.getIgdbGameId(), bearerToken);
         boolean upstreamResponded = !(gameInfo.name() == null
                 && gameInfo.genres().isEmpty()
@@ -110,7 +116,7 @@ public class LibraryService {
                 .igdbGameId(request.getIgdbGameId())
                 .gameName(gameInfo.name() != null ? gameInfo.name() : request.getGameName())
                 .status(request.getStatus())
-                .platform(request.getPlatform())
+                .platforms(new ArrayList<>(platforms))
                 .rating(request.getRating())
                 .notes(request.getNotes())
                 .backgroundImage(gameInfo.backgroundImage())
@@ -145,7 +151,14 @@ public class LibraryService {
             }
         }
         if (request.getRating() != null) game.setRating(request.getRating());
-        if (request.getPlatform() != null) game.setPlatform(request.getPlatform());
+        if (request.getPlatforms() != null || request.getPlatform() != null) {
+            List<String> platforms = Platforms.normalise(request.getPlatforms(), request.getPlatform());
+            if (platforms.isEmpty()) {
+                throw new IllegalArgumentException("At least one platform is required");
+            }
+            // A fresh list, so Hibernate rewrites the rows instead of shifting positions in place
+            game.setPlatforms(new ArrayList<>(platforms));
+        }
         if (request.getLastPlayed() != null) game.setLastPlayed(request.getLastPlayed());
         if (request.getPlaytime() != null) game.setPlaytime(request.getPlaytime());
         if (request.getNotes() != null) game.setNotes(request.getNotes());
@@ -200,9 +213,9 @@ public class LibraryService {
                 .filter(g -> !g.isBlank())
                 .collect(Collectors.groupingBy(g -> g, Collectors.counting()));
 
+        // A game owned on two platforms counts under both, so the per-platform numbers can sum past the total
         Map<String, Long> byPlatform = games.stream()
-                .map(UserGame::getPlatform)
-                .filter(p -> p != null && !p.isBlank())
+                .flatMap(g -> g.getPlatforms().stream())
                 .collect(Collectors.groupingBy(p -> p, Collectors.counting()));
 
         return UserStatsDTO.builder()
@@ -227,7 +240,8 @@ public class LibraryService {
                 .released(game.getReleased())
                 .status(game.getStatus())
                 .rating(game.getRating())
-                .platform(game.getPlatform())
+                .platform(game.getPlatforms().isEmpty() ? null : game.getPlatforms().get(0))
+                .platforms(List.copyOf(game.getPlatforms()))
                 .dateAdded(game.getDateAdded())
                 .lastPlayed(game.getLastPlayed())
                 .statusChangedAt(game.getStatusChangedAt())
