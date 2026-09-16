@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -323,7 +324,7 @@ class LibraryServiceTest {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         UpdateGameRequest request = new UpdateGameRequest();
         request.setStatus(GameStatus.PLAYING);
-        request.setRating(9);
+        request.setRating(new BigDecimal("9"));
 
         when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -331,9 +332,22 @@ class LibraryServiceTest {
         UserGameDTO result = libraryService.updateGame(USER_ID, 1L, request);
 
         assertThat(result.getStatus()).isEqualTo(GameStatus.PLAYING);
-        assertThat(result.getRating()).isEqualTo(9);
+        assertThat(result.getRating()).isEqualByComparingTo("9");
         assertThat(result.getLastPlayed()).isNotNull();
         assertThat(result.getStatusChangedAt()).isNotNull();
+    }
+
+    @Test
+    void shouldKeepAHalfStepRatingAsGiven() {
+        UserGame game = buildGame(1L, USER_ID, GameStatus.COMPLETED);
+        UpdateGameRequest request = new UpdateGameRequest();
+        request.setRating(new BigDecimal("6.5"));
+        when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
+        when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UserGameDTO result = libraryService.updateGame(USER_ID, 1L, request);
+
+        assertThat(result.getRating()).isEqualByComparingTo("6.5");
     }
 
     @Test
@@ -345,7 +359,7 @@ class LibraryServiceTest {
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateGameRequest ratingOnly = new UpdateGameRequest();
-        ratingOnly.setRating(7);
+        ratingOnly.setRating(new BigDecimal("7"));
         UserGameDTO afterRating = libraryService.updateGame(USER_ID, 1L, ratingOnly);
         assertThat(afterRating.getStatusChangedAt()).isEqualTo(longAgo);
         assertThat(afterRating.getPreviousStatus()).isNull();
@@ -445,9 +459,9 @@ class LibraryServiceTest {
         List<UserGame> games = List.of(
                 buildGameWithRating(1L, GameStatus.BACKLOG, null),
                 buildGameWithRating(2L, GameStatus.BACKLOG, null),
-                buildGameWithRating(3L, GameStatus.COMPLETED, 8),
-                buildGameWithRating(4L, GameStatus.COMPLETED, 10),
-                buildGameWithRating(5L, GameStatus.PLAYING, 9)
+                buildGameWithRating(3L, GameStatus.COMPLETED, "8"),
+                buildGameWithRating(4L, GameStatus.COMPLETED, "10"),
+                buildGameWithRating(5L, GameStatus.PLAYING, "9")
         );
         when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
 
@@ -459,6 +473,20 @@ class LibraryServiceTest {
         assertThat(stats.getByStatus().get(GameStatus.BACKLOG)).isEqualTo(2L);
         assertThat(stats.getByStatus().get(GameStatus.COMPLETED)).isEqualTo(2L);
         assertThat(stats.getByStatus().get(GameStatus.PLAYING)).isEqualTo(1L);
+    }
+
+    @Test
+    void shouldAverageHalfStepRatings() {
+        List<UserGame> games = List.of(
+                buildGameWithRating(1L, GameStatus.COMPLETED, "8.5"),
+                buildGameWithRating(2L, GameStatus.COMPLETED, "9")
+        );
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(games);
+
+        UserStatsDTO stats = libraryService.getStats(USER_ID);
+
+        assertThat(stats.getTotalRated()).isEqualTo(2);
+        assertThat(stats.getAverageRating()).isEqualTo(8.75);
     }
 
     @Test
@@ -618,7 +646,7 @@ class LibraryServiceTest {
         UserGame game = buildGame(1L, USER_ID, GameStatus.BACKLOG);
         game.setPlatforms(new ArrayList<>(List.of("PC", "PlayStation 5")));
         UpdateGameRequest request = new UpdateGameRequest();
-        request.setRating(8);
+        request.setRating(new BigDecimal("8"));
         when(userGameRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(game));
         when(userGameRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -660,7 +688,7 @@ class LibraryServiceTest {
         assertThat(unfiltered).hasSize(3);
     }
 
-    private UserGame buildGameWithRating(Long id, GameStatus status, Integer rating) {
+    private UserGame buildGameWithRating(Long id, GameStatus status, String rating) {
         return UserGame.builder()
                 .id(id)
                 .userId(USER_ID)
@@ -668,7 +696,7 @@ class LibraryServiceTest {
                 .gameName("Game " + id)
                 .status(status)
                 .platforms(new ArrayList<>(List.of("PC")))
-                .rating(rating)
+                .rating(rating == null ? null : new BigDecimal(rating))
                 .dateAdded(LocalDateTime.now().minusDays(10))
                 .build();
     }

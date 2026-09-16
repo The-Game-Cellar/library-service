@@ -34,6 +34,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -236,11 +237,12 @@ class LibraryIntegrationTest {
 
         UpdateGameRequest toPlaying = new UpdateGameRequest();
         toPlaying.setStatus(GameStatus.PLAYING);
-        toPlaying.setRating(9);
+        toPlaying.setRating(new BigDecimal("9.5"));
         UserGameDTO updated = libraryService.updateGame(ALICE, saved.getId(), toPlaying);
 
         assertThat(updated.getStatus()).isEqualTo(GameStatus.PLAYING);
-        assertThat(updated.getRating()).isEqualTo(9);
+        // Through the real NUMERIC(3,1) column, so the half survives the round trip
+        assertThat(libraryService.getGame(ALICE, saved.getId()).getRating()).isEqualByComparingTo("9.5");
         assertThat(updated.getLastPlayed()).isNotNull();
         assertThat(updated.getStatusChangedAt()).isAfter(stamped);
         assertThat(updated.getPreviousStatus()).isEqualTo(GameStatus.BACKLOG);
@@ -270,7 +272,7 @@ class LibraryIntegrationTest {
             jdbc.update("UPDATE user_games SET status_changed_at = ? WHERE id = ?", hundredDaysAgo, stale.getId());
         }
         UpdateGameRequest ratingOnly = new UpdateGameRequest();
-        ratingOnly.setRating(6);
+        ratingOnly.setRating(new BigDecimal("6"));
         libraryService.updateGame(ALICE, forgottenBacklog.getId(), ratingOnly);
 
         dustyScheduler.transitionDustyGames();
