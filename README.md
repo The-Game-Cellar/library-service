@@ -14,7 +14,7 @@
 
 - CRUD for the user's game collection (`user_games`).
 - Status tracking: `PLAYING`, `BACKLOG`, `COMPLETED`, `DROPPED`, `WISHLIST`, `DUSTY`.
-- Ratings (1–10), platforms, notes, playtime, dates.
+- Ratings (0.5 to 10 in half steps), platforms, notes, playtime, dates.
 - Declared preferences: genre, tag, release-year (replace-all PUT endpoints).
 - Search + filtering (status, platform, search, genre).
 - Daily DUSTY transition for games untouched for 90+ days.
@@ -62,7 +62,7 @@ user_games
   id, user_id (Keycloak UUID, VARCHAR, no FK),
   igdb_game_id (IGDB reference, no FK),
   game_name, background_image, released (cached from Game Service),
-  status, rating (1-10),
+  status, rating (NUMERIC(3,1), 0.5 to 10 in half steps),
   date_added, last_played, playtime, notes,
   status_changed_at (moves only on a status change; the DUSTY job reads it),
   previous_status (the status before the current one; NULL until the first transition),

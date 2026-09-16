@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class UserGameDTO {
     private List<String> tags;
     private String released;
     private GameStatus status;
-    private Integer rating;
+    private BigDecimal rating;
     // `platform` is the first of `platforms`, kept for the v1 client
     private String platform;
     private List<String> platforms;

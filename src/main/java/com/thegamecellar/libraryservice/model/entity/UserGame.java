@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,8 +36,9 @@ public class UserGame {
     @Column(name = "status", nullable = false)
     private GameStatus status;
 
-    @Column(name = "rating")
-    private Integer rating;
+    // 0.5 to 10 in half steps; the request validates the step, the column only holds the decimal
+    @Column(name = "rating", precision = 3, scale = 1)
+    private BigDecimal rating;
 
     // Ordered: the first platform is the entry's main one, the value the old single column held
     @ElementCollection(fetch = FetchType.EAGER)

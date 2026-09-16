@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -199,13 +200,13 @@ public class LibraryService {
         Map<GameStatus, Long> byStatus = games.stream()
                 .collect(Collectors.groupingBy(UserGame::getStatus, Collectors.counting()));
 
-        List<Integer> ratings = games.stream()
+        List<BigDecimal> ratings = games.stream()
                 .map(UserGame::getRating)
                 .filter(r -> r != null)
                 .toList();
 
         Double averageRating = ratings.isEmpty() ? null :
-                ratings.stream().mapToInt(Integer::intValue).average().orElse(0);
+                ratings.stream().mapToDouble(BigDecimal::doubleValue).average().orElse(0);
 
         Map<String, Long> byGenre = games.stream()
                 .flatMap(g -> g.getGenres().stream())
