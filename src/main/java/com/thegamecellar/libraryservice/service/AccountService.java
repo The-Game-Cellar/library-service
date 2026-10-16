@@ -2,12 +2,18 @@ package com.thegamecellar.libraryservice.service;
 
 import com.thegamecellar.libraryservice.model.dto.AccountDeletionDTO;
 import com.thegamecellar.libraryservice.model.dto.AccountExportDTO;
-import com.thegamecellar.libraryservice.model.dto.UserGameDTO;
-import com.thegamecellar.libraryservice.model.dto.UserGenrePreferenceDTO;
-import com.thegamecellar.libraryservice.model.dto.UserPlatformDTO;
-import com.thegamecellar.libraryservice.model.dto.UserReleaseYearPreferenceDTO;
-import com.thegamecellar.libraryservice.model.dto.UserTagPreferenceDTO;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedGame;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedGenrePreference;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedPlatform;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedReleaseYearPreference;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedTagPreference;
 import com.thegamecellar.libraryservice.model.entity.AccountDeletion;
+import com.thegamecellar.libraryservice.model.entity.UserGame;
+import com.thegamecellar.libraryservice.model.entity.UserGenrePreference;
+import com.thegamecellar.libraryservice.model.entity.UserOnboarding;
+import com.thegamecellar.libraryservice.model.entity.UserPlatform;
+import com.thegamecellar.libraryservice.model.entity.UserReleaseYearPreference;
+import com.thegamecellar.libraryservice.model.entity.UserTagPreference;
 import com.thegamecellar.libraryservice.repository.AccountDeletionRepository;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
 import com.thegamecellar.libraryservice.repository.UserGenrePreferenceRepository;
@@ -21,11 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 // GDPR right-to-deletion + right-to-portability for a single user across every user-keyed table.
-// Every entity carrying a userId must have its repository injected here and purged below;
-// AccountServiceTest scans the entity package and fails when one is missing. The one
+// Every entity carrying a userId must have its repository injected here, purged and exported
+// below; AccountServiceTest scans the entity package and fails when one is missing. The one
 // exception is the deletion ledger, which must outlive the purge.
 @Slf4j
 @Service
@@ -43,11 +50,6 @@ public class AccountService {
     private final UserTagPreferenceRepository userTagPreferenceRepository;
     private final UserReleaseYearPreferenceRepository userReleaseYearPreferenceRepository;
     private final UserOnboardingRepository userOnboardingRepository;
-    private final LibraryService libraryService;
-    private final PlatformService platformService;
-    private final GenrePreferenceService genrePreferenceService;
-    private final TagPreferenceService tagPreferenceService;
-    private final ReleaseYearPreferenceService releaseYearPreferenceService;
 
     // Ledger and purge commit together, so there is no state where the library is gone and
     // nothing records that the identity still has to follow. A second request for the same
@@ -92,13 +94,35 @@ public class AccountService {
         return new PurgeResult(games, platforms, genrePreferences, tagPreferences, releaseYearPreferences, onboarding);
     }
 
+    // Straight from the repositories, not through the feature services: the file holds every row
+    // as stored, not the shape a screen asks for. One read-only transaction keeps it one snapshot.
+    @Transactional(readOnly = true)
     public AccountExportDTO exportUser(String userId) {
-        List<UserGameDTO> games = libraryService.getGames(userId, null, null, null, null, null);
-        List<UserPlatformDTO> platforms = platformService.getPlatforms(userId);
-        List<UserGenrePreferenceDTO> genrePreferences = genrePreferenceService.getPreferences(userId);
-        List<UserTagPreferenceDTO> tagPreferences = tagPreferenceService.getPreferences(userId);
-        List<UserReleaseYearPreferenceDTO> releaseYearPreferences = releaseYearPreferenceService.getPreferences(userId);
-        return AccountExportDTO.of(userId, games, platforms, genrePreferences, tagPreferences, releaseYearPreferences);
+        List<ExportedGame> games = userGameRepository.findByUserId(userId).stream()
+                .sorted(Comparator.comparing(UserGame::getId))
+                .map(ExportedGame::of)
+                .toList();
+        List<ExportedPlatform> platforms = userPlatformRepository.findByUserId(userId).stream()
+                .sorted(Comparator.comparing(UserPlatform::getId))
+                .map(ExportedPlatform::of)
+                .toList();
+        List<ExportedGenrePreference> genrePreferences = userGenrePreferenceRepository.findByUserId(userId).stream()
+                .sorted(Comparator.comparing(UserGenrePreference::getId))
+                .map(ExportedGenrePreference::of)
+                .toList();
+        List<ExportedTagPreference> tagPreferences = userTagPreferenceRepository.findByUserId(userId).stream()
+                .sorted(Comparator.comparing(UserTagPreference::getId))
+                .map(ExportedTagPreference::of)
+                .toList();
+        List<ExportedReleaseYearPreference> releaseYearPreferences = userReleaseYearPreferenceRepository.findByUserId(userId).stream()
+                .sorted(Comparator.comparing(UserReleaseYearPreference::getId))
+                .map(ExportedReleaseYearPreference::of)
+                .toList();
+        LocalDateTime onboardingCompletedAt = userOnboardingRepository.findById(userId)
+                .map(UserOnboarding::getCompletedAt)
+                .orElse(null);
+        return AccountExportDTO.of(userId, onboardingCompletedAt, games, platforms,
+                genrePreferences, tagPreferences, releaseYearPreferences);
     }
 
     public record PurgeResult(long gamesRemoved,

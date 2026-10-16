@@ -1,11 +1,20 @@
 package com.thegamecellar.libraryservice.service;
 
 import com.thegamecellar.libraryservice.model.dto.AccountExportDTO;
-import com.thegamecellar.libraryservice.model.dto.UserGenrePreferenceDTO;
-import com.thegamecellar.libraryservice.model.dto.UserReleaseYearPreferenceDTO;
-import com.thegamecellar.libraryservice.model.dto.UserTagPreferenceDTO;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedGame;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedGenrePreference;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedPlatform;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedReleaseYearPreference;
+import com.thegamecellar.libraryservice.model.dto.AccountExportDTO.ExportedTagPreference;
 import com.thegamecellar.libraryservice.model.dto.AccountDeletionDTO;
 import com.thegamecellar.libraryservice.model.entity.AccountDeletion;
+import com.thegamecellar.libraryservice.model.entity.UserGame;
+import com.thegamecellar.libraryservice.model.entity.UserGenrePreference;
+import com.thegamecellar.libraryservice.model.entity.UserOnboarding;
+import com.thegamecellar.libraryservice.model.entity.UserPlatform;
+import com.thegamecellar.libraryservice.model.entity.UserReleaseYearPreference;
+import com.thegamecellar.libraryservice.model.entity.UserTagPreference;
+import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.repository.AccountDeletionRepository;
 import com.thegamecellar.libraryservice.repository.UserGameRepository;
 import com.thegamecellar.libraryservice.repository.UserGenrePreferenceRepository;
@@ -25,10 +34,13 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.RecordComponent;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -53,11 +65,6 @@ class AccountServiceTest {
     @Mock private UserTagPreferenceRepository userTagPreferenceRepository;
     @Mock private UserReleaseYearPreferenceRepository userReleaseYearPreferenceRepository;
     @Mock private UserOnboardingRepository userOnboardingRepository;
-    @Mock private LibraryService libraryService;
-    @Mock private PlatformService platformService;
-    @Mock private GenrePreferenceService genrePreferenceService;
-    @Mock private TagPreferenceService tagPreferenceService;
-    @Mock private ReleaseYearPreferenceService releaseYearPreferenceService;
 
     @InjectMocks
     private AccountService service;
@@ -148,24 +155,80 @@ class AccountServiceTest {
     }
 
     @Test
-    void exportIncludesEveryPreferenceKind() {
-        when(libraryService.getGames(USER_ID, null, null, null, null, null)).thenReturn(List.of());
-        when(platformService.getPlatforms(USER_ID)).thenReturn(List.of());
-        when(genrePreferenceService.getPreferences(USER_ID)).thenReturn(List.of(new UserGenrePreferenceDTO("RPG")));
-        when(tagPreferenceService.getPreferences(USER_ID)).thenReturn(List.of(new UserTagPreferenceDTO("cozy")));
-        when(releaseYearPreferenceService.getPreferences(USER_ID)).thenReturn(List.of(
-                new UserReleaseYearPreferenceDTO("1990s"),
-                new UserReleaseYearPreferenceDTO("2020s")));
+    void exportIncludesEveryKindOfRowInIdOrderWithTheOnboardingDate() {
+        LocalDateTime onboarded = LocalDateTime.of(2026, 5, 1, 12, 0);
+        when(userGameRepository.findByUserId(USER_ID)).thenReturn(List.of(
+                UserGame.builder().id(9L).igdbGameId(1002).gameName("Stardew Valley").status(GameStatus.PLAYING).build(),
+                UserGame.builder().id(4L).igdbGameId(1001).gameName("Hollow Knight").status(GameStatus.BACKLOG).build()));
+        when(userPlatformRepository.findByUserId(USER_ID)).thenReturn(List.of(
+                UserPlatform.builder().id(1L).platformName("PC").isPrimary(true).build()));
+        when(userGenrePreferenceRepository.findByUserId(USER_ID)).thenReturn(List.of(
+                UserGenrePreference.builder().id(3L).genreName("RPG").createdAt(onboarded).build()));
+        when(userTagPreferenceRepository.findByUserId(USER_ID)).thenReturn(List.of(
+                UserTagPreference.builder().id(5L).tagName("cozy").createdAt(onboarded).build()));
+        when(userReleaseYearPreferenceRepository.findByUserId(USER_ID)).thenReturn(List.of(
+                UserReleaseYearPreference.builder().id(8L).bucketLabel("2020s").build(),
+                UserReleaseYearPreference.builder().id(7L).bucketLabel("1990s").build()));
+        when(userOnboardingRepository.findById(USER_ID)).thenReturn(Optional.of(
+                UserOnboarding.builder().userId(USER_ID).completedAt(onboarded).build()));
 
         AccountExportDTO export = service.exportUser(USER_ID);
 
         assertThat(export.userId()).isEqualTo(USER_ID);
-        assertThat(export.genrePreferenceCount()).isEqualTo(1);
-        assertThat(export.tagPreferenceCount()).isEqualTo(1);
-        assertThat(export.releaseYearPreferenceCount()).isEqualTo(2);
+        assertThat(export.onboardingCompletedAt()).isEqualTo(onboarded);
+        assertThat(export.games()).extracting(ExportedGame::id).containsExactly(4L, 9L);
+        assertThat(export.platforms()).extracting(ExportedPlatform::platformName).containsExactly("PC");
+        assertThat(export.genrePreferences()).extracting(ExportedGenrePreference::createdAt).containsExactly(onboarded);
+        assertThat(export.tagPreferences()).extracting(ExportedTagPreference::tagName).containsExactly("cozy");
         assertThat(export.releaseYearPreferences())
-                .extracting(UserReleaseYearPreferenceDTO::bucketLabel)
+                .extracting(ExportedReleaseYearPreference::bucketLabel)
                 .containsExactly("1990s", "2020s");
+        assertThat(export.gameCount()).isEqualTo(2);
+        assertThat(export.releaseYearPreferenceCount()).isEqualTo(2);
+    }
+
+    @Test
+    void exportOfAUserWhoNeverFinishedOnboardingHasNoDate() {
+        when(userOnboardingRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertThat(service.exportUser(USER_ID).onboardingCompletedAt()).isNull();
+    }
+
+    // A column the export leaves out is personal data the user cannot see. Every field of every
+    // user-keyed entity, bar the userId the file carries once at the top, must reach the file;
+    // a new entity or a new column without its place in AccountExportDTO fails here.
+    @Test
+    void exportCarriesEveryFieldOfEveryEntityThatCarriesAUserId() throws Exception {
+        Map<Class<?>, Set<String>> exported = Map.of(
+                UserGame.class, components(ExportedGame.class),
+                UserPlatform.class, components(ExportedPlatform.class),
+                UserGenrePreference.class, components(ExportedGenrePreference.class),
+                UserTagPreference.class, components(ExportedTagPreference.class),
+                UserReleaseYearPreference.class, components(ExportedReleaseYearPreference.class),
+                // One row per user, so its fields sit at the top level behind an "onboarding" prefix.
+                UserOnboarding.class, components(AccountExportDTO.class).stream()
+                        .filter(name -> name.startsWith("onboarding"))
+                        .map(name -> Character.toLowerCase(name.charAt(10)) + name.substring(11))
+                        .collect(Collectors.toSet()));
+
+        for (Class<?> entity : userKeyedEntities()) {
+            assertThat(exported)
+                    .withFailMessage("%s carries a userId but has no place in AccountExportDTO", entity.getSimpleName())
+                    .containsKey(entity);
+            Set<String> fields = Arrays.stream(entity.getDeclaredFields())
+                    .filter(field -> !Modifier.isStatic(field.getModifiers()) && !field.isSynthetic())
+                    .map(Field::getName)
+                    .filter(name -> !name.equals("userId"))
+                    .collect(Collectors.toSet());
+            assertThat(exported.get(entity))
+                    .withFailMessage("AccountExportDTO leaves out %s of %s", fields.stream()
+                            .filter(name -> !exported.get(entity).contains(name)).toList(), entity.getSimpleName())
+                    .containsAll(fields);
+        }
+    }
+
+    private static Set<String> components(Class<?> record) {
+        return Arrays.stream(record.getRecordComponents()).map(RecordComponent::getName).collect(Collectors.toSet());
     }
 
     private static Set<Class<?>> userKeyedEntities() throws ClassNotFoundException {

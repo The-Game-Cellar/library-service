@@ -140,7 +140,7 @@ Replace-all writes use a bulk `DELETE` with `@Modifying(flushAutomatically, clea
 
 | Method | Path                                   | Description                                                                 |
 |--------|----------------------------------------|-----------------------------------------------------------------------------|
-| GET    | `/api/v1/library/account/export`       | Everything this service holds for the caller, as one JSON document.          |
+| GET    | `/api/v1/library/account/export`       | Every column of every row this service holds for the caller (games with their timestamps, previous status and when the status last changed, platforms, the three preference lists with when each was picked, and when the first setup was finished), read in one transaction. Called by the gateway's account export, which puts it beside the account and the recommendation data. |
 | DELETE | `/api/v1/library/account`              | Writes the `account_deletions` ledger row and purges the caller's rows in one transaction, reporting what was removed per table. The identity itself is deleted by the gateway, which calls this after disabling the user. |
 
 ### Admin
@@ -221,7 +221,7 @@ docker compose up library-service
 ./mvnw test
 ```
 
-Unit tests cover controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation with mocked repositories. `LibraryIntegrationTest` runs the service layer against a real Postgres 17 started by Testcontainers with the real Flyway migrations: add, filter, update and remove with owner scoping and the duplicate constraint, the DUSTY job with `status_changed_at` backdated in SQL and a rating edit in between, replace-all preferences with overlapping values in one transaction, and a full account purge checked against the export. Only the game-service client and the Redis publisher are mocked. It needs a Docker daemon and skips itself where none is reachable.
+Unit tests cover controllers, the DUSTY scheduler, the replace-all preference flow, and the stats aggregation with mocked repositories. `LibraryIntegrationTest` runs the service layer against a real Postgres 17 started by Testcontainers with the real Flyway migrations: add, filter, update and remove with owner scoping and the duplicate constraint, the DUSTY job with `status_changed_at` backdated in SQL and a rating edit in between, replace-all preferences with overlapping values in one transaction, and a full account purge checked against the export. Only the game-service client and the Redis publisher are mocked. `AccountEndpointsTest` drives the export and account-delete endpoints over HTTP through the real security chain against the same Postgres setup: no token or a rejected one is refused with nothing touched, and a token for one user exports and purges only that user's rows while another user's stay. `AccountServiceTest` fails when an entity carrying a user id is missing from the purge, or when it or a column on it is missing from the export. The Postgres tests need a Docker daemon and skip themselves where none is reachable.
 
 ## Security
 
