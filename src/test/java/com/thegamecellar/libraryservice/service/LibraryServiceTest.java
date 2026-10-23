@@ -40,6 +40,9 @@ class LibraryServiceTest {
     @Mock
     private LibraryWritePublisher writePublisher;
 
+    @Mock
+    private PlatformService platformService;
+
     @InjectMocks
     private LibraryService libraryService;
 

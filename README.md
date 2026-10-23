@@ -76,7 +76,8 @@ user_game_genres   user_game_themes   user_game_tags
   user_game_id FK (ON DELETE CASCADE), value VARCHAR(100), composite PK + reverse index
 
 user_platforms
-  id, user_id, platform_name, is_primary
+  id, user_id, platform_name, is_primary; UNIQUE (user_id, platform_name).
+  The user's own platforms. Every platform a library entry is owned on is among them.
 
 user_genre_preferences   user_tag_preferences   user_release_year_preferences
   user_id + name                user_id + name             user_id + decade
@@ -103,8 +104,8 @@ All endpoints require JWT. `user_id` is always extracted from the `sub` claim, n
 | Method | Path                              | Description                                                              |
 |--------|-----------------------------------|--------------------------------------------------------------------------|
 | GET    | `/api/v1/library/games`           | Filtered: `?status=`, `?platform=` (repeatable, any of them matches), `?search=`, `?genre=`. |
-| POST   | `/api/v1/library/games`           | Add game. 409 on duplicate. Body validated (`@NotNull`, `@NotBlank`); `platforms` (list, first is the main one) or `platform` (single), at least one. |
-| PUT    | `/api/v1/library/games/{id}`      | Update status / rating / platforms / etc. `platforms` replaces the whole list, `platform` replaces it with that one; an empty list is a 400. `DUSTY` rejected. |
+| POST   | `/api/v1/library/games`           | Add game. 409 on duplicate. Body validated (`@NotNull`, `@NotBlank`); `platforms` (list, first is the main one) or `platform` (single), at least one. A platform on the entry that the user does not have yet joins their platforms, not primary. |
+| PUT    | `/api/v1/library/games/{id}`      | Update status / rating / platforms / etc. `platforms` replaces the whole list, `platform` replaces it with that one; an empty list is a 400. `DUSTY` rejected. A platform the entry gains joins the user's platforms as on add; one it loses stays there. |
 | DELETE | `/api/v1/library/games/{id}`      | Remove.                                                                  |
 
 ### Filtered views

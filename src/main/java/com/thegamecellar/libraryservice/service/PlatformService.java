@@ -8,6 +8,7 @@ import com.thegamecellar.libraryservice.model.entity.UserPlatform;
 import com.thegamecellar.libraryservice.repository.UserPlatformRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,6 +35,14 @@ public class PlatformService {
                 .isPrimary(request.getIsPrimary() != null ? request.getIsPrimary() : false)
                 .build();
         return toDTO(userPlatformRepository.save(platform));
+    }
+
+    // A library entry's platforms join the user's own; one already there keeps its primary flag.
+    @Transactional
+    public void addMissing(String userId, List<String> platformNames) {
+        for (String name : platformNames) {
+            userPlatformRepository.insertIfAbsent(userId, name);
+        }
     }
 
     public void removePlatform(String userId, Long platformId) {
