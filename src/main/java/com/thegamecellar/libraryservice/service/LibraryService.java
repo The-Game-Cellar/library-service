@@ -25,6 +25,7 @@ public class LibraryService {
     private final UserGameRepository userGameRepository;
     private final GameServiceClient gameServiceClient;
     private final LibraryWritePublisher writePublisher;
+    private final PlatformService platformService;
 
     @Transactional
     public List<UserGameDTO> getGames(String userId, GameStatus status, List<String> platforms, String search, String genre, String bearerToken) {
@@ -128,6 +129,7 @@ public class LibraryService {
                 .metadataSyncedAt(upstreamResponded ? LocalDateTime.now() : null)
                 .build();
         UserGameDTO saved = toDTO(userGameRepository.save(game));
+        platformService.addMissing(userId, platforms);
         writePublisher.publish(userId);
         return saved;
     }
@@ -159,6 +161,7 @@ public class LibraryService {
             }
             // A fresh list, so Hibernate rewrites the rows instead of shifting positions in place
             game.setPlatforms(new ArrayList<>(platforms));
+            platformService.addMissing(userId, platforms);
         }
         if (request.getLastPlayed() != null) game.setLastPlayed(request.getLastPlayed());
         if (request.getPlaytime() != null) game.setPlaytime(request.getPlaytime());
