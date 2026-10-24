@@ -1,24 +1,23 @@
 package com.thegamecellar.libraryservice;
 
+import com.thegamecellar.libraryservice.support.LibraryServiceTestBase;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
-@SpringBootTest
-@TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:testdb",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.flyway.enabled=false",
-        "spring.datasource.password=",
-        "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://unused"
-})
-class LibraryServiceApplicationTests {
+import static org.assertj.core.api.Assertions.assertThat;
+
+// The context starts on Postgres with Flyway on and ddl-auto=validate, so it only comes up when the
+// migrations build exactly the schema the entities expect.
+class LibraryServiceApplicationTests extends LibraryServiceTestBase {
 
     @Test
-    void contextLoads() {
-    }
+    void everyMigrationRanAndTheEntitiesValidateAgainstTheSchema() throws Exception {
+        int files = new PathMatchingResourcePatternResolver().getResources("classpath:db/migration/V*.sql").length;
 
+        Integer applied = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class);
+
+        assertThat(files).isPositive();
+        assertThat(applied).isEqualTo(files);
+    }
 }

@@ -13,26 +13,14 @@ import com.thegamecellar.libraryservice.model.dto.UserTagPreferenceDTO;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
 import com.thegamecellar.libraryservice.scheduler.DustyTransitionScheduler;
 import com.thegamecellar.libraryservice.service.AccountService;
-import com.thegamecellar.libraryservice.service.GameServiceClient;
 import com.thegamecellar.libraryservice.service.GenrePreferenceService;
 import com.thegamecellar.libraryservice.service.LibraryService;
-import com.thegamecellar.libraryservice.service.LibraryWritePublisher;
 import com.thegamecellar.libraryservice.service.ReleaseYearPreferenceService;
 import com.thegamecellar.libraryservice.service.TagPreferenceService;
-import org.junit.jupiter.api.AfterEach;
+import com.thegamecellar.libraryservice.support.LibraryServiceTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -41,51 +29,13 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-// The service layer against a real Postgres 17 running the real Flyway migrations. The two
-// outbound edges are mocked: the game-service client, which is HTTP, and the Redis
-// publisher, which is best-effort by design. Everything between them, including the
-// unique constraints and the @PrePersist timestamps, is the production code path.
-//
-// disabledWithoutDocker: skipped rather than failed where no Docker daemon is reachable. On
-// Windows with Docker Desktop, Testcontainers may need `%USERPROFILE%\.testcontainers.properties`
-// pointing docker.host at the Desktop engine pipe; see the recommendation-service test of the
-// same shape.
-@SpringBootTest
-@Testcontainers(disabledWithoutDocker = true)
-@TestPropertySource(properties = {
-        "spring.flyway.enabled=true",
-        "spring.jpa.hibernate.ddl-auto=validate",
-        "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://unused"
-})
-class LibraryIntegrationTest {
+// The service layer against a real Postgres 17 running the real Flyway migrations, with game-service
+// a stub at its URL and the write signal on a real Redis channel. Everything between them, including
+// the unique constraints and the @PrePersist timestamps, is the production code path.
+class LibraryIntegrationTest extends LibraryServiceTestBase {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine")
-            .withDatabaseName("library_test_db")
-            .withUsername("test")
-            .withPassword("test");
-
-    @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
-
-    private static final String ALICE = "11111111-0000-4000-8000-000000000001";
-    private static final String BOB = "22222222-0000-4000-8000-000000000002";
-    private static final String TOKEN = "bearer-for-game-service";
-
-    @MockitoBean private GameServiceClient gameServiceClient;
-    @MockitoBean private LibraryWritePublisher writePublisher;
-    @MockitoBean private JwtDecoder jwtDecoder;
+    private static final String TOKEN = "Bearer for-game-service";
 
     @Autowired private LibraryService libraryService;
     @Autowired private GenrePreferenceService genrePreferenceService;
@@ -93,22 +43,12 @@ class LibraryIntegrationTest {
     @Autowired private ReleaseYearPreferenceService releaseYearPreferenceService;
     @Autowired private AccountService accountService;
     @Autowired private DustyTransitionScheduler dustyScheduler;
-    @Autowired private JdbcTemplate jdbc;
 
     @BeforeEach
     void catalogAnswers() {
-        when(gameServiceClient.getGameInfo(eq(1001), any())).thenReturn(new GameServiceClient.GameInfo(
-                "Hollow Knight", "hk.jpg", List.of("Platform", "Adventure"), List.of("Action"), List.of("metroidvania"), "2017-02-24"));
-        when(gameServiceClient.getGameInfo(eq(1002), any())).thenReturn(new GameServiceClient.GameInfo(
-                "Stardew Valley", "sv.jpg", List.of("Simulator", "Role-playing (RPG)"), List.of(), List.of("farming"), "2016-02-26"));
-        when(gameServiceClient.getGameInfo(eq(1003), any())).thenReturn(new GameServiceClient.GameInfo(
-                "Celeste", "ce.jpg", List.of("Platform"), List.of(), List.of(), "2018-01-25"));
-    }
-
-    @AfterEach
-    void purgeEveryone() {
-        accountService.purgeUser(ALICE);
-        accountService.purgeUser(BOB);
+        catalogGame(1001, "Hollow Knight", List.of("Platform", "Adventure"), List.of("Action"), List.of("metroidvania"), "2017-02-24");
+        catalogGame(1002, "Stardew Valley", List.of("Simulator", "Role-playing (RPG)"), List.of(), List.of("farming"), "2016-02-26");
+        catalogGame(1003, "Celeste", List.of("Platform"), List.of(), List.of(), "2018-01-25");
     }
 
     private UserGameDTO add(String userId, int igdbId, GameStatus status) {
@@ -129,7 +69,7 @@ class LibraryIntegrationTest {
     }
 
     @Test
-    void addingAGameCachesTheCatalogMetadataAndScopesItToTheOwner() {
+    void addingAGameCachesTheCatalogMetadataAndScopesItToTheOwner() throws Exception {
         UserGameDTO saved = add(ALICE, 1001, GameStatus.BACKLOG);
 
         assertThat(saved.getId()).isNotNull();
@@ -149,7 +89,7 @@ class LibraryIntegrationTest {
                 .isInstanceOf(GameNotFoundException.class);
         assertThat(add(BOB, 1001, GameStatus.WISHLIST).getGameName()).isEqualTo("Hollow Knight");
 
-        verify(writePublisher, times(2)).publish(any());
+        assertThat(libraryWrites()).containsExactly(ALICE, BOB);
     }
 
     @Test
@@ -159,7 +99,7 @@ class LibraryIntegrationTest {
         assertThatThrownBy(() -> add(ALICE, 1001, GameStatus.PLAYING))
                 .isInstanceOf(GameAlreadyInCollectionException.class);
 
-        verify(gameServiceClient, times(1)).getGameInfo(eq(1001), any());
+        assertThat(GAME_SERVICE.recorded("GET", "/api/v1/games/1001")).hasSize(1);
         assertThat(libraryService.getGames(ALICE, null, null, null, null, TOKEN)).hasSize(1);
     }
 

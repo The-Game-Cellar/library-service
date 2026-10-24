@@ -9,6 +9,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -18,15 +19,18 @@ import java.util.List;
 public class AddGameRequest {
     @NotNull
     private Integer igdbGameId;
-    @NotBlank
+    @NotBlank @Size(max = 255)
     private String gameName;
     @NotNull
     private GameStatus status;
     // The platforms the entry is owned on, first is the main one; `platform` alone is the v1 client's field
-    private List<String> platforms;
+    private List<@Size(max = 255) String> platforms;
+    @Size(max = 255)
     private String platform;
     @DecimalMin("0.5") @DecimalMax("10")
     private BigDecimal rating;
+    // The app's notes field stops at the same length
+    @Size(max = 10_000)
     private String notes;
 
     @JsonIgnore

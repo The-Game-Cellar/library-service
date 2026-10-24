@@ -7,6 +7,7 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -19,11 +20,14 @@ public class UpdateGameRequest {
     @DecimalMin("0.5") @DecimalMax("10")
     private BigDecimal rating;
     // `platforms` replaces the whole list; `platform` alone (the v1 client) replaces it with that one
-    private List<String> platforms;
+    private List<@Size(max = 255) String> platforms;
+    @Size(max = 255)
     private String platform;
     private LocalDateTime lastPlayed;
     @Min(0)
     private Integer playtime;
+    // The app's notes field stops at the same length
+    @Size(max = 10_000)
     private String notes;
 
     @JsonIgnore

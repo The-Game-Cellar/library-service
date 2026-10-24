@@ -7,10 +7,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -84,6 +89,30 @@ public class GlobalExceptionHandler {
                 .toList();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Validation failed", request, fieldErrors));
+    }
+
+    // WARN, not ERROR: sentry-logback turns every ERROR line into a Sentry event, so a malformed
+    // request must never reach the catch-all below.
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ErrorResponse> handleMalformed(Exception ex, HttpServletRequest request) {
+        log.warn("Rejected {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getClass().getSimpleName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Invalid request", request));
+    }
+
+    // Spring's exceptions carry their own status (405, 415, 406) and headers such as Allow.
+    @ExceptionHandler({HttpRequestMethodNotSupportedException.class, HttpMediaTypeException.class})
+    public ResponseEntity<ErrorResponse> handleUnsupported(Exception ex, HttpServletRequest request) {
+        org.springframework.web.ErrorResponse springError = (org.springframework.web.ErrorResponse) ex;
+        int status = springError.getStatusCode().value();
+        log.warn("Rejected {} {}: {}", request.getMethod(), request.getRequestURI(), ex.getClass().getSimpleName());
+        return ResponseEntity.status(status)
+                .headers(springError.getHeaders())
+                .body(ErrorResponse.of(status, HttpStatus.valueOf(status).getReasonPhrase(), request));
     }
 
     // Unmatched paths surface as NoResourceFoundException (static resource handler) or
