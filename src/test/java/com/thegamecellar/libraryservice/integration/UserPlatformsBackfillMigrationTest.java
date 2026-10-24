@@ -16,8 +16,9 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // The backfill run the way production gets it: the real migrations up to the one before it, rows
-// written in that schema, then the rest of the migrations on top.
-@Testcontainers(disabledWithoutDocker = true)
+// written in that schema, then the rest of the migrations on top. A database of its own, since the
+// shared one is already migrated to the end.
+@Testcontainers
 class UserPlatformsBackfillMigrationTest {
 
     @Container

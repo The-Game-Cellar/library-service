@@ -85,7 +85,7 @@ public class UserGame {
     @Column(name = "released", length = 20)
     private String released;
 
-    @Column(name = "notes")
+    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
     @Column(name = "metadata_synced_at")

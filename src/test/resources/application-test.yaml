@@ -1,0 +1,23 @@
+# Overrides on top of the production application.yaml, which loads first. The datasource, Redis and
+# the game-service URL come from the containers and the stub in LibraryServiceTestBase.
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri:
+          jwk-set-uri: https://unused
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+security:
+  internal:
+    token: test-internal-token
+
+# "-" switches the cron off, so the nightly pass never fires mid-suite; the tests run it themselves.
+cellar:
+  ratings:
+    cron: "-"

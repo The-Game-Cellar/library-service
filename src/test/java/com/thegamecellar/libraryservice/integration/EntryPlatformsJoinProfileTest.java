@@ -1,37 +1,15 @@
 package com.thegamecellar.libraryservice.integration;
 
-import com.thegamecellar.libraryservice.model.entity.UserGame;
-import com.thegamecellar.libraryservice.model.entity.UserPlatform;
 import com.thegamecellar.libraryservice.model.enums.GameStatus;
-import com.thegamecellar.libraryservice.repository.UserGameRepository;
-import com.thegamecellar.libraryservice.repository.UserPlatformRepository;
-import com.thegamecellar.libraryservice.service.GameServiceClient;
-import com.thegamecellar.libraryservice.service.LibraryWritePublisher;
-import org.junit.jupiter.api.AfterEach;
+import com.thegamecellar.libraryservice.support.LibraryServiceTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.oauth2.jwt.BadJwtException;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,12 +20,6 @@ import java.util.concurrent.Future;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,86 +27,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // A library entry's platforms join the user's own platforms, driven the way the gateway calls the
 // two writes: an HTTP request with a bearer token through the real security chain, against
 // Postgres running the real migrations.
-@SpringBootTest
-@AutoConfigureMockMvc
-@Testcontainers(disabledWithoutDocker = true)
-@TestPropertySource(properties = {
-        "spring.flyway.enabled=true",
-        "spring.jpa.hibernate.ddl-auto=validate",
-        "spring.security.oauth2.resourceserver.jwt.issuer-uri=",
-        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=https://unused"
-})
-class EntryPlatformsJoinProfileTest {
+class EntryPlatformsJoinProfileTest extends LibraryServiceTestBase {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine")
-            .withDatabaseName("library_test_db")
-            .withUsername("test")
-            .withPassword("test");
-
-    @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
-
-    private static final String ALICE = "11111111-0000-4000-8000-000000000001";
-    private static final String BOB = "22222222-0000-4000-8000-000000000002";
     private static final String GAMES = "/api/v1/library/games";
 
-    @MockitoBean private GameServiceClient gameServiceClient;
-    @MockitoBean private LibraryWritePublisher writePublisher;
-    @MockitoBean private JwtDecoder jwtDecoder;
-
-    @Autowired private MockMvc mvc;
-    @Autowired private JdbcTemplate jdbc;
-    @Autowired private UserGameRepository games;
-    @Autowired private UserPlatformRepository platforms;
     @Autowired private PlatformTransactionManager transactionManager;
 
     @BeforeEach
-    void tokensACatalogAndAProfileForBothUsers() {
-        lenient().when(jwtDecoder.decode(anyString())).thenThrow(new BadJwtException("unknown token"));
-        issue("alice-token", ALICE);
-        issue("bob-token", BOB);
-        when(gameServiceClient.getGameInfo(anyInt(), any())).thenReturn(new GameServiceClient.GameInfo(
-                "Hollow Knight", "hk.jpg", List.of("Platform"), List.of(), List.of(), "2017-02-24"));
+    void aCatalogAndAProfileForBothUsers() {
+        catalogGame(1001, "Hollow Knight", List.of("Platform"), List.of(), List.of(), "2017-02-24");
         own(ALICE, "PC", true);
         own(BOB, "Nintendo Switch", false);
     }
 
-    @AfterEach
-    void emptyEveryTable() {
-        for (String table : List.of("user_game_platforms", "user_game_genres", "user_game_themes", "user_game_tags",
-                "user_games", "user_platforms")) {
-            jdbc.update("DELETE FROM " + table);
-        }
-    }
-
-    private void issue(String token, String subject) {
-        Instant now = Instant.now();
-        Jwt jwt = Jwt.withTokenValue(token)
-                .header("alg", "RS256")
-                .subject(subject)
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(300))
-                .claim("realm_access", Map.of("roles", List.of("USER")))
-                .build();
-        doReturn(jwt).when(jwtDecoder).decode(token);
-    }
-
-    private static String bearer(String token) {
-        return "Bearer " + token;
-    }
-
-    private void own(String userId, String platformName, boolean primary) {
-        platforms.save(UserPlatform.builder().userId(userId).platformName(platformName).isPrimary(primary).build());
-    }
-
     private long entry(String userId, int igdbId, String... platformNames) {
-        return games.save(UserGame.builder().userId(userId).igdbGameId(igdbId).gameName("Seeded " + igdbId)
-                .status(GameStatus.BACKLOG).platforms(new ArrayList<>(List.of(platformNames))).build()).getId();
+        return entry(userId, igdbId, "Seeded " + igdbId, GameStatus.BACKLOG, platformNames).getId();
     }
 
     // Name to primary flag, failing on a second row for the same name.
